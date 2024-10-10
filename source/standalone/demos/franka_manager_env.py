@@ -45,6 +45,8 @@ from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 import omni.isaac.lab.utils.math as math_utils
 from omni.isaac.lab.assets import DeformableObject, DeformableObjectCfg, AssetBaseCfg, ArticulationCfg, RigidObject, RigidObjectCfg
 from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
+from omni.isaac.lab.sensors import CameraCfg
+
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.managers import EventTermCfg as EventTerm
 
@@ -98,7 +100,22 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     # articulation
     # -- Robot
     robot: ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    
+    # sensors
+    camera = CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/panda_link7/front_cam",
+        update_period=0.1,
+        height=480,
+        width=640,
+        data_types=["rgb", "distance_to_image_plane"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        ),
+        # corresponds to 180 degree rotation around x-axis
+        offset=CameraCfg.OffsetCfg(pos=(0.2, 0.0, -0.5), rot=(1, 0, 0, 0), convention="ros"),
+    )
 
+    # initial position from teddy_bear example
     cube_deform : DeformableObjectCfg = DeformableObjectCfg(
             prim_path="{ENV_REGEX_NS}/cube_deform",
             spawn=sim_utils.MeshCuboidCfg(
@@ -107,14 +124,14 @@ class RoboticSoftCfg(InteractiveSceneCfg):
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.5, 0.1, 0.0)),
                 physics_material=sim_utils.DeformableBodyMaterialCfg(poissons_ratio=0.4, youngs_modulus=1e5),
             ),
-            init_state=DeformableObjectCfg.InitialStateCfg(pos=(0.55, 0.0, 1.05)),
+            init_state=DeformableObjectCfg.InitialStateCfg(pos=(0.5, 0, 0.05)),
             debug_vis=True,
         )
 
     # # add cube
     cube: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/cube",
-        init_state=RigidObjectCfg.InitialStateCfg(pos=(0.55, 0.0, 2.05)),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=(0.5, 0, 0.5)),
         spawn=sim_utils.CuboidCfg(
             size=(0.2, 0.2, 0.2),
             rigid_props=RigidBodyPropertiesCfg(
@@ -210,7 +227,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     rigid_object = scene["cube"]
     # env_cfg = RoboticEnvCfg()
     # env = ManagerBasedEnv(cfg=env_cfg)
-    
+
     # # setup base environment
     # robot = env.scene["robot"]
 
@@ -223,12 +240,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     frame_marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
     ee_marker = VisualizationMarkers(frame_marker_cfg.replace(prim_path="/Visuals/ee_current"))
     goal_marker = VisualizationMarkers(frame_marker_cfg.replace(prim_path="/Visuals/ee_goal"))
+    # add a marker for the sensor 
+    sensor_marker = VisualizationMarkers(frame_marker_cfg.replace(prim_path="/Visuals/sensor"))
 
     # Define goals for the arm
     ee_goals = [
-        [0.5, 0.5, 0.7, 0.707, 0, 0.707, 0],
-        [0.5, -0.4, 0.6, 0.707, 0.707, 0.0, 0.0],
-        [0.5, 0, 0.5, 0.0, 1.0, 0.0, 0.0],
+        [0.1, 0.1, 1.0, 0.707, 0, 0.707, 0],
+        [0.2, 0.1, 1.0, 0.707, 0.707, 0.0, 0.0],
+        [0.3, 0.1, 1.0, 0.0, 1.0, 0.0, 0.0],
     ]
     ee_goals = torch.tensor(ee_goals, device=sim.device)
     # Track the given command
@@ -239,9 +258,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     ik_commands[:] = ee_goals[current_goal_idx]
     
-    robot_entity_cfg = SceneEntityCfg("robot", joint_names=["panda_joint.*"], body_names=["panda_hand"])
+    robot_entity_cfg = SceneEntityCfg("robot", joint_names=["panda_joint.*"], body_names=["panda_hand", "panda_link7"], preserve_order=True)
     # Resolving the scene entities
     robot_entity_cfg.resolve(scene)
+    print(f"robot_entity_cfg.body_ids: {robot_entity_cfg.body_ids}")
+    print(f"robot_entity_cfg.joint_ids: {robot_entity_cfg.joint_ids}")
+    print(f"robot_entity_cfg: {robot_entity_cfg}")
+
     # Obtain the frame index of the end-effector
     # For a fixed base robot, the frame index is one less than the body index. This is because
     # the root body is not included in the returned Jacobians.
@@ -350,9 +373,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         # obtain quantities from simulation
         ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
+        camera_pose = robot.data.body_state_w[:, robot_entity_cfg.body_ids[1], 0:7]
+        print(robot_entity_cfg.body_ids)
+        
         # update marker positions
         ee_marker.visualize(ee_pose_w[:, 0:3], ee_pose_w[:, 3:7])
         goal_marker.visualize(ik_commands[:, 0:3] + scene.env_origins, ik_commands[:, 3:7])
+        # update sensor marker
+        sensor_marker.visualize(camera_pose[:, 0:3], camera_pose[:, 3:7])
+        
+        # print information from the sensors
+        print("-------------------------------")
+        print(scene["camera"])
+        print("Received shape of rgb   image: ", scene["camera"].data.output["rgb"].shape)
+        print("Received shape of depth image: ", scene["camera"].data.output["distance_to_image_plane"].shape)
         
 # env = ManagerBasedEnv(cfg=env_cfg)
 # # Initialize the simulation context
