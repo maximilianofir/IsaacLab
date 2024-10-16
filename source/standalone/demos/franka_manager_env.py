@@ -72,7 +72,7 @@ from omni.isaac.lab.utils.math import subtract_frame_transforms
 # Pre-defined configs
 ##
 # isort: off
-from omni.isaac.lab_assets import FRANKA_PANDA_CFG, FRANKA_PANDA_HIGH_PD_CFG
+from omni.isaac.lab_assets import FRANKA_PANDA_CFG, FRANKA_PANDA_HIGH_PD_CFG, FRANKA_PANDA_REALSENSE_CFG
 
 # isort: on
 
@@ -99,7 +99,8 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     )
     # articulation
     # -- Robot
-    robot: ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    # robot: ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     
     # sensors
     camera = CameraCfg(
