@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Manipulation environments for fixed-arm robots."""
-
-from .reach import *  # noqa
-from .ultrasound import *  # noqa
+"""
+ultrasound manipulation environment, based on reach and lift tasks.
+"""

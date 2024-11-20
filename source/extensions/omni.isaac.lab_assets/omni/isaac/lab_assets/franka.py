@@ -88,12 +88,13 @@ This configuration is useful for task-space control using differential IK.
 
 """ Configuration for the Franka Emika robot with realsense camera."""
 FRANKA_PANDA_REALSENSE_CFG = FRANKA_PANDA_CFG.copy()
+
 # local filepath 
 spawn=sim_utils.UsdFileCfg(
     usd_path=R"omniverse://localhost/Library/ultrasound/franka_realsense_no_world.usd",
     activate_contact_sensors=False,
     rigid_props=sim_utils.RigidBodyPropertiesCfg(
-        disable_gravity=False,
+        disable_gravity=True,
         max_depenetration_velocity=5.0,
     ),
     articulation_props=sim_utils.ArticulationRootPropertiesCfg(
@@ -102,3 +103,7 @@ spawn=sim_utils.UsdFileCfg(
     # collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.005, rest_offset=0.0),
 )
 FRANKA_PANDA_REALSENSE_CFG.spawn = spawn
+FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_shoulder"].stiffness = 400.0
+FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_shoulder"].damping = 80.0
+FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_forearm"].stiffness = 400.0
+FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_forearm"].damping = 80.0
