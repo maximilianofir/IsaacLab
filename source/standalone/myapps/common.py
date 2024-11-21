@@ -3,62 +3,29 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""
-This script demonstrate a single-arm manipulator.
-
-.. code-block:: bash
-
-    # Usage
-    ./isaaclab.bat -p source/standalone/demos/franka_manager_rl_env.py --enable_cameras
-
-"""
-
-"""Launch Isaac Sim Simulator first."""
-
-import argparse
-
-from omni.isaac.lab.app import AppLauncher
-
-# add argparse arguments
-parser = argparse.ArgumentParser(description="This script demonstrates a single-arm manipulator.")
-parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to spawn.")
-
-# append AppLauncher cli args
-AppLauncher.add_app_launcher_args(parser)
-# parse the arguments
-args_cli = parser.parse_args()
-
-# launch omniverse app
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
-
-"""Rest everything follows."""
-
 import numpy as np
 import torch
 
 import omni.isaac.core.utils.prims as prim_utils
 
 import omni.isaac.lab.sim as sim_utils
-from omni.isaac.lab.sim import UsdFileCfg
 from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
-import omni.isaac.lab.utils.math as math_utils
-from omni.isaac.lab.assets import DeformableObject, DeformableObjectCfg, AssetBaseCfg, ArticulationCfg, RigidObject, RigidObjectCfg
-from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
+from omni.isaac.lab.assets import DeformableObjectCfg, AssetBaseCfg, ArticulationCfg, RigidObjectCfg
+from omni.isaac.lab.scene import  InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.managers import EventTermCfg as EventTerm
+from omni.isaac.lab.managers import RewardTermCfg as RewTerm
+from omni.isaac.lab.managers import SceneEntityCfg
+from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
 
 from omni.isaac.lab_tasks.manager_based.manipulation.lift.lift_env_cfg import LiftEnvCfg
-from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedEnvCfg, ManagerBasedRLEnvCfg
+from omni.isaac.lab.envs import ManagerBasedEnvCfg, ManagerBasedRLEnvCfg
 
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
 from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 import omni.isaac.lab.envs.mdp as mdp
-
-from omni.isaac.lab.managers import SceneEntityCfg
-
 
 ##
 # Pre-defined configs
@@ -73,7 +40,7 @@ from omni.isaac.lab_assets import FRANKA_PANDA_CFG
 #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"))
 
 @configclass
-class RoboticSoftCfg(InteractiveSceneCfg):
+class FrankaRealsenseCfg(InteractiveSceneCfg):
     # ground plane
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",
@@ -89,6 +56,7 @@ class RoboticSoftCfg(InteractiveSceneCfg):
         init_state=AssetBaseCfg.InitialStateCfg(pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]),
         spawn=sim_utils.UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
     )
+
     # articulation
     # -- Robot
     robot: ArticulationCfg = FRANKA_PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -182,8 +150,9 @@ class EventCfg:
 
 @configclass
 class RoboticEnvCfg(ManagerBasedEnvCfg):
+    
     # scene settings
-    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=args_cli.num_envs, env_spacing=2.5)
+    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
     # Basic settings
     observations = ObservationsCfg()
     actions = ActionsCfg()
@@ -199,11 +168,57 @@ class RoboticEnvCfg(ManagerBasedEnvCfg):
         # simulation settings
         self.sim.dt = 0.005  # sim step every 5ms: 200Hz
 
+
+@configclass
+class RewardsCfg:
+    """Reward terms for the MDP."""
+
+    # (1) Constant running reward
+    alive = RewTerm(func=mdp.is_alive, weight=1.0)
+    # (2) Failure penalty
+    terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
+    # (3) Primary task: keep pole upright
+    pole_pos = RewTerm(
+        func=mdp.joint_pos_target_l2,
+        weight=-1.0,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"]), "target": 0.0},
+    )
+    # (4) Shaping tasks: lower cart velocity
+    cart_vel = RewTerm(
+        func=mdp.joint_vel_l1,
+        weight=-0.01,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"])},
+    )
+    # (5) Shaping tasks: lower pole angular velocity
+    pole_vel = RewTerm(
+        func=mdp.joint_vel_l1,
+        weight=-0.005,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"])},
+    )
+
+
+@configclass
+class TerminationsCfg:
+    """Termination terms for the MDP."""
+
+    # (1) Time out
+    time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    # (2) Cart out of bounds
+    cart_out_of_bounds = DoneTerm(
+        func=mdp.joint_pos_out_of_manual_limit,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]), "bounds": (-3.0, 3.0)},
+    )
+
+
+# See example in: https://isaac-sim.github.io/IsaacLab/main/source/tutorials/03_envs/create_manager_rl_env.html
 class RoboticRLEnvConfig(ManagerBasedRLEnvCfg):
-    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=args_cli.num_envs, env_spacing=2.5)
+    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
     observations = ObservationsCfg()
     actions = ActionsCfg()
     events = EventCfg()
+    # MDP settings
+    rewards: RewardsCfg = RewardsCfg()
+    terminations: TerminationsCfg = TerminationsCfg()
 
     def __post_init__(self):
         """Post initialization."""
@@ -214,36 +229,5 @@ class RoboticRLEnvConfig(ManagerBasedRLEnvCfg):
         self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
         # simulation settings
         self.sim.dt = 0.005  # sim step every 5ms: 200Hz
-
-
-
-def main():
-    """Main function."""
-    env_cfg = RoboticEnvCfg()
-    env = ManagerBasedEnv(cfg=env_cfg)
-    # setup base environment
-
-    # simulate physics
-    count = 0
-    while simulation_app.is_running():
-        with torch.inference_mode():
-            # reset
-            if count % 300 == 0:
-                count = 0
-                env.reset()
-                print("-" * 80)
-                print("[INFO]: Resetting environment...")
-            # sample random actions
-            joint_efforts = torch.randn_like(env.action_manager.action)
-            # step the environment
-            obs, _ = env.step(joint_efforts)
-            # print current orientation of pole
-            print("[Env 0]: Pole joint: ", obs["policy"][0][1].item())
-            # update counters
-            count += 1
-
-if __name__ == "__main__":
-    # run the main function
-    main()
-    # close sim app
-    simulation_app.close()
+        self.episode_length_s = 5
+        self.sim.render_interval = self.decimation

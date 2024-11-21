@@ -90,7 +90,7 @@ This configuration is useful for task-space control using differential IK.
 FRANKA_PANDA_REALSENSE_CFG = FRANKA_PANDA_CFG.copy()
 # local filepath 
 spawn=sim_utils.UsdFileCfg(
-    usd_path=R"omniverse://localhost/Library/ultrasound/franka_realsense_no_world.usd",
+    usd_path=R"C:/Users/tirindelli/ImFusionProjects/NVIDIAConnection/ultrasound/franka_realsense_no_world.usd",
     activate_contact_sensors=False,
     rigid_props=sim_utils.RigidBodyPropertiesCfg(
         disable_gravity=False,

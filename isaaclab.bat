@@ -40,14 +40,17 @@ goto :eof
 
 rem extract the python from isaacsim
 :extract_python_exe
-rem check if using conda
-if not "%CONDA_PREFIX%"=="" (
-    rem use conda python
-    set python_exe=%CONDA_PREFIX%\python.exe
-) else (
+rem check if using condaconda activate isaaclab
+::if not "%CONDA_PREFIX%"=="" (
+::    if false (
+        rem use conda python
+        set python_exe=%CONDA_PREFIX%\python.exe
+::) else (
     rem use kit python
-    set python_exe=%ISAACLAB_PATH%\_isaac_sim\python.bat
-)
+    echo [INFO] using kit python
+    rem set python_exe=%ISAACLAB_PATH%\_isaac_sim\python.bat
+    set python_exe=C:\Users\tirindelli\AppData\Local\ov\pkg\isaac-sim-4.2.0\python.bat
+::)
 rem check for if isaac sim was installed to system python
 if not exist "%python_exe%" (
     set "python_exe="

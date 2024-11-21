@@ -9,7 +9,7 @@ This script demonstrate a single-arm manipulator.
 .. code-block:: bash
 
     # Usage
-    ./isaaclab.sh -p source/standalone/demos/my_demo.py
+    ./isaaclab.bat -p source/standalone/demos/franka_manager_env.py
 
 """
 
@@ -154,65 +154,6 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     )
 
 
-##
-# MDP settings
-##
-
-@configclass
-class ActionsCfg:
-    """Action specifications for the environment."""
-
-    # generate random joint positions
-    # joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
-
-    # set the joint positions as target
-    joint_pos_des = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=1.0, use_default_offset=True)
-
-
-@configclass
-class ObservationsCfg:
-    """Observation specifications for the environment."""
-
-    @configclass
-    class PolicyCfg(ObsGroup):
-        """Observations for policy group."""
-
-        # observation terms (order preserved)
-        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
-
-        def __post_init__(self) -> None:
-            self.enable_corruption = False
-            self.concatenate_terms = True
-
-    # observation groups
-    policy: PolicyCfg = PolicyCfg()
-
-@configclass
-class EventCfg:
-    """Configuration for events."""
-
-    reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
-
-
-@configclass
-class RoboticEnvCfg(ManagerBasedEnvCfg):
-    # scene settings
-    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=args_cli.num_envs, env_spacing=2.5)
-    # Basic settings
-    observations = ObservationsCfg()
-    actions = ActionsCfg()
-    events = EventCfg()
-
-    def __post_init__(self):
-        """Post initialization."""
-        # viewer settings
-        self.viewer.eye = [4.5, 0.0, 6.0]
-        self.viewer.lookat = [0.0, 0.0, 2.0]
-        # step settings
-        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
-        # simulation settings
-        self.sim.dt = 0.005  # sim step every 5ms: 200Hz
 
 
 
@@ -220,6 +161,7 @@ class RoboticEnvCfg(ManagerBasedEnvCfg):
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
+
     """Runs the simulation loop."""
     # Extract scene entities
     # note: we only do this here for readability.
@@ -394,6 +336,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
 
 def main():
+
+    print(f"ISAAC_NUCLEUS_DIR: {ISAAC_NUCLEUS_DIR}")
+    return
+
     sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
     # Set main camera
