@@ -26,7 +26,7 @@ from omni.isaac.lab.envs.mdp.actions.actions_cfg import DifferentialInverseKinem
 
 
 from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG
-
+import random
 
 @configclass
 class RoboticSoftCfg(InteractiveSceneCfg):
@@ -102,6 +102,29 @@ class ObservationsCfg:
 class EventCfg:
     """Configuration for events."""
 
+    # Custom reset function to move object
+    @staticmethod
+    def move_object_on_reset(env):
+        # Get the object (assuming it's the organs in this case)
+        organs_prim = env.scene.get_object("organs")
+        if organs_prim is not None:
+            # Set new position with random offsets
+            new_position = [0.2 + random.uniform(-0.1, 0.1),  # x: base 0.2 ± 0.1
+                          0.4 + random.uniform(-0.1, 0.1),    # y: base 0.4 ± 0.1
+                          -0.1]                                   # z: fixed
+            organs_prim.set_world_pose(position=new_position)
+        return True
+
+    # At reset we combine the default reset with our custom object movement,
+    # i.e. we randomly move the organ to a new location on the table.
+    reset_scene = EventTerm(
+        func=lambda env: all([
+            mdp.reset_scene_to_default(env),
+            EventCfg.move_object_on_reset(env)
+        ]),
+        mode="reset"
+    )
+
     reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
 @configclass
@@ -112,6 +135,9 @@ class RewardsCfg:
     alive = RewTerm(func=mdp.is_alive, weight=1.0)
     # (2) Failure penalty
     terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
+
+    distance_to_patient = RewTerm(func=mdp.distance_to_patient, weight=1.0)
+    align_ee_patient = RewTerm(func=mdp.align_ee_patient, weight=1.0)
 
 
 @configclass
