@@ -1,0 +1,4 @@
+policy : "MultiInputPolicy"
+n_timesteps : 1000000
+seed : -1
+n_steps : 100
