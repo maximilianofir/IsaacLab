@@ -1,0 +1,229 @@
+# Copyright (c) 2022-2024, The Isaac Lab Project Developers.
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+
+from dataclasses import MISSING
+
+import omni.isaac.lab.sim as sim_utils
+import omni.isaac.lab.envs.mdp as mdp
+
+from omni.isaac.lab.assets import AssetBaseCfg, ArticulationCfg
+from omni.isaac.lab.scene import InteractiveSceneCfg
+from omni.isaac.lab.utils import configclass
+from omni.isaac.lab.managers import EventTermCfg as EventTerm
+from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
+from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
+from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
+from omni.isaac.lab.managers import RewardTermCfg as RewTerm
+from omni.isaac.lab.managers import SceneEntityCfg
+from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
+
+from omni.isaac.lab.envs import ManagerBasedRLEnvCfg, ManagerBasedEnvCfg
+from omni.isaac.lab.controllers import DifferentialIKControllerCfg
+from omni.isaac.lab.envs.mdp.actions.actions_cfg import DifferentialInverseKinematicsActionCfg
+
+
+from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG
+
+
+@configclass
+class RoboticSoftCfg(InteractiveSceneCfg):
+    # ground plane
+    ground = AssetBaseCfg(
+        prim_path="/World/defaultGroundPlane",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=[0, 0, -1.05]),
+        spawn=sim_utils.GroundPlaneCfg())
+
+    # lights
+    dome_light = AssetBaseCfg(
+        prim_path="/World/Light", spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
+    )
+    table = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/Table",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]),
+        spawn=sim_utils.UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
+    )
+
+    # body
+    # spawn the organ model onto the table, it needs to be scaled (1/10 of an inch?)
+    organs = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/Organs",
+                          init_state=AssetBaseCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
+                          spawn=sim_utils.UsdFileCfg(usd_path=R"C:\Users\mmoller\OneDrive - NVIDIA Corporation\Documents\projects\ImFusion\shared\roboticUltrasound\ultrasound\environment\organ.usda",
+                                                     scale=(0.00254, 0.00254, 0.00254)))
+
+    # articulation
+    robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+##
+# MDP settings
+##
+
+@configclass
+class CommandsCfg:
+    """Command terms for the MDP."""
+
+    # no commands for this MDP
+    null = mdp.NullCommandCfg()
+
+@configclass
+class ActionsCfg:
+    """Action specifications for the environment."""
+
+    # set the joint positions as target
+    # joint_pos_des = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=1.0, use_default_offset=True)
+    # overwrite in post_init
+    arm_action: mdp.JointPositionActionCfg | mdp.DifferentialInverseKinematicsActionCfg = MISSING
+
+@configclass
+class ObservationsCfg:
+    """Observation specifications for the environment."""
+
+    # todo: add camera as observation term
+
+    @configclass
+    class PolicyCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # observation terms (order preserved)
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
+
+        def __post_init__(self) -> None:
+            self.enable_corruption = False
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
+
+@configclass
+class EventCfg:
+    """Configuration for events."""
+
+    reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+
+@configclass
+class RewardsCfg:
+    """Reward terms for the MDP."""
+
+    # (1) Constant running reward
+    alive = RewTerm(func=mdp.is_alive, weight=1.0)
+    # (2) Failure penalty
+    terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
+
+
+@configclass
+class TerminationsCfg:
+    """Termination terms for the MDP."""
+
+    # (1) Time out
+    time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    # (2) Cart out of bounds
+    robot_out_of_bounds = DoneTerm(
+        func=mdp.joint_pos_out_of_manual_limit,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["panda_joint.*"]), "bounds": (-3.0, 3.0)},
+    )
+
+
+@configclass
+class CurriculumCfg:
+    """Configuration for the curriculum."""
+
+    pass
+
+
+@configclass
+class RoboticEnvIkCfg(ManagerBasedEnvCfg):
+    """Configuration for the robotic ultrasound environment."""
+
+    # scene settings
+    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
+    # Basic settings
+    observations = ObservationsCfg()
+    actions = ActionsCfg()
+    events = EventCfg()
+
+    def __post_init__(self) -> None:
+        """Post initialization."""
+        # viewer settings
+        self.viewer.eye = [4.5, 0.0, 6.0]
+        self.viewer.lookat = [0.0, 0.0, 2.0]
+        # step settings
+        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
+        # simulation settings
+        self.sim.dt = 0.005  # sim step every 5ms: 200Hz
+
+        # configure the action
+        self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
+            asset_name="robot",
+            joint_names=["panda_joint.*"],
+            body_name="panda_hand",
+            controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
+            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.107]),
+        )
+
+@configclass
+class RoboticEnvCfg(ManagerBasedEnvCfg):
+    """Configuration for the robotic ultrasound environment."""
+
+    # scene settings
+    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
+    # Basic settings
+    observations = ObservationsCfg()
+    actions = ActionsCfg()
+    events = EventCfg()
+
+    def __post_init__(self) -> None:
+        """Post initialization."""
+        # viewer settings
+        self.viewer.eye = [4.5, 0.0, 6.0]
+        self.viewer.lookat = [0.0, 0.0, 2.0]
+        # step settings
+        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
+        # simulation settings
+        self.sim.dt = 0.005  # sim step every 5ms: 200Hz
+
+        self.actions.arm_action = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["panda_joint.*"], scale=1.0, use_default_offset=True)
+
+
+@configclass
+class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
+    """Configuration for the robotic ultrasound environment."""
+
+    # Scene settings
+    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
+    # Basic settings
+    observations: ObservationsCfg = ObservationsCfg()
+    actions: ActionsCfg = ActionsCfg()
+    events: EventCfg = EventCfg()
+    # MDP settings
+    curriculum: CurriculumCfg = CurriculumCfg()
+    rewards: RewardsCfg = RewardsCfg()
+    terminations: TerminationsCfg = TerminationsCfg()
+    # No command generator
+    commands: CommandsCfg = CommandsCfg()
+
+    # Post initialization
+    def __post_init__(self) -> None:
+        """Post initialization."""
+        # viewer settings
+        self.viewer.eye = [4.5, 0.0, 6.0]
+        self.viewer.lookat = [0.0, 0.0, 2.0]
+        # step settings
+        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
+        self.episode_length_s = 5
+
+        # simulation settings
+        self.sim.dt = 1 / 200
+        self.sim.render_interval = self.decimation
+
+        # configure the action
+        self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
+            asset_name="robot",
+            joint_names=["panda_joint.*"],
+            body_name="panda_hand",
+            controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
+            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.107]),
+        )
