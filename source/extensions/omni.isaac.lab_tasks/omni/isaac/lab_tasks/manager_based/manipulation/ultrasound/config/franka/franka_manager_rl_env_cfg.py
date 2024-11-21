@@ -5,7 +5,6 @@
 
 
 from dataclasses import MISSING
-
 import omni.isaac.lab.sim as sim_utils
 import omni.isaac.lab.envs.mdp as mdp
 

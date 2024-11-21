@@ -21,10 +21,10 @@ from . import franka_manager_rl_env_cfg
 ##
 
 gym.register(
-    id="Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0",
-    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
+    id="Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0", # The gym environment name.
+    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv", # the manager base class.
     kwargs={
-        "env_cfg_entry_point": franka_manager_rl_env_cfg.RoboticIkRlEnvCfg,
+        "env_cfg_entry_point": franka_manager_rl_env_cfg.RoboticIkRlEnvCfg, # the config class to be used to initialize the manager environment.
     },
     disable_env_checker=True,
 )
