@@ -66,7 +66,8 @@ class RoboticSoftCfg(InteractiveSceneCfg):
             scale=(0.00254, 0.00254, 0.00254),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
             mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
-            collision_props=sim_utils.CollisionPropertiesCfg())
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
     )
 
     # articulation
@@ -125,6 +126,7 @@ class ObservationsCfg:
 @configclass
 class EventCfg:
     """Configuration for events."""
+
     # the reset scene to event function already resets all rigid objects and articulations to rheir default states.
     # this needs to be executed before any other reset function, to not overwrite the reset scene to default.
     reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
