@@ -61,7 +61,7 @@ import omni.isaac.lab_tasks  # noqa: F401
 from omni.isaac.lab_tasks.utils.hydra import hydra_task_config
 from omni.isaac.lab_tasks.utils.wrappers.sb3 import Sb3VecEnvWrapper, process_sb3_cfg
 
-import omni.isaac.lab_tasks.manager_based.manipulation.ultrasound.config.franka.franka_manager_rl_env_cfg as ultrasound 
+import omni.isaac.lab_tasks.manager_based.manipulation.ultrasound.franka_manager_rl_env_cfg as ultrasound 
 
 @hydra_task_config(args_cli.task, "sb3_cfg_entry_point")
 def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
@@ -84,7 +84,7 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
 
     # directory for logging into
     log_dir = os.path.join("logs", "sb3", args_cli.task, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-    #dump the configuration into log-directory
+    # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
     dump_pickle(os.path.join(log_dir, "params", "env.pkl"), env_cfg)
@@ -143,15 +143,7 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
 
 
 if __name__ == "__main__":
-    import yaml
-    # TODO: add to argparse
-
-    # Load a YAML file
-    with open("rl_config.yaml", "r") as file:
-        agent_config = yaml.safe_load(file)  # Use safe_load for security
-
-    envConfig = ultrasound.RoboticIkRlEnvCfg()
     # run the main function
-    main(envConfig, agent_config)
+    main()
     # close sim app
     simulation_app.close()

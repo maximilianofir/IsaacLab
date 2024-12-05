@@ -7,7 +7,6 @@
 from dataclasses import MISSING
 
 import omni.isaac.lab.sim as sim_utils
-import omni.isaac.lab.envs.mdp as mdp
 
 from omni.isaac.lab.assets import AssetBaseCfg, ArticulationCfg, RigidObjectCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
@@ -26,9 +25,9 @@ from omni.isaac.lab.envs.mdp.actions.actions_cfg import (
     DifferentialInverseKinematicsActionCfg,
 )
 
-
 from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG
 
+from .import mdp
 
 @configclass
 class RoboticSoftCfg(InteractiveSceneCfg):
@@ -85,8 +84,15 @@ class RoboticSoftCfg(InteractiveSceneCfg):
 class CommandsCfg:
     """Command terms for the MDP."""
 
-    # no commands for this MDP
-    null = mdp.NullCommandCfg()
+    target_pose = mdp.UniformPoseCommandCfg(
+        asset_name="robot",
+        body_name=MISSING,  # will be set by agent env cfg
+        resampling_time_range=(5.0, 5.0),
+        debug_vis=True,
+        ranges=mdp.UniformPoseCommandCfg.Ranges(
+            pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
+        ),
+    )
 
 
 @configclass
@@ -114,6 +120,9 @@ class ObservationsCfg:
         # observation terms (order preserved)
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
+        object_position = ObsTerm(func=mdp.object_position_in_robot_root_frame)
+        target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "target_pose"})
+        actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
@@ -214,6 +223,7 @@ class RoboticEnvIkCfg(ManagerBasedEnvCfg):
         )
 
 
+
 @configclass
 class RoboticEnvCfg(ManagerBasedEnvCfg):
     """Configuration for the robotic ultrasound environment."""
@@ -286,3 +296,7 @@ class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
                 pos=[0.0, 0.0, 0.107]
             ),
         )
+
+        # Set the body name for the end effector
+        self.commands.target_pose.body_name = "panda_hand"
+

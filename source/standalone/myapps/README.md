@@ -38,3 +38,14 @@ The \_\_init\_\_.py at (source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_ta
 ```sh
 python "source\standalone\myapps\random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0
 ```
+
+##### Training
+The example from the tutorial
+```sh
+python source/standalone/workflows/sb3/train.py --task Isaac-Cartpole-v0 --num_envs 64
+```
+
+Ours: 
+```sh
+python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0 --num_envs 1
+```
