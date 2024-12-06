@@ -25,6 +25,7 @@ gym.register(
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv", # the manager base class.
     kwargs={
         "env_cfg_entry_point": franka_manager_rl_env_cfg.RoboticIkRlEnvCfg, # the config class to be used to initialize the manager environment.
+         #"sb3_cfg_entry_point": f"{agents.__name__}:sb3_ppo_cfg.yaml",
     },
     disable_env_checker=True,
 )
@@ -32,4 +33,3 @@ gym.register(
 ##
 # Inverse Kinematics - Relative Pose Control
 ##
-

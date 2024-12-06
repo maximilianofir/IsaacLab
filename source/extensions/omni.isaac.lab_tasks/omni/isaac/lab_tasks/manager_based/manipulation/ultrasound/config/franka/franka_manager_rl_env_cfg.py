@@ -26,7 +26,7 @@ from omni.isaac.lab.envs.mdp.actions.actions_cfg import (
 
 from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG
 
-from .import mdp
+from omni.isaac.lab_tasks.manager_based.manipulation.ultrasound import mdp
 
 @configclass
 class RoboticSoftCfg(InteractiveSceneCfg):
@@ -185,72 +185,6 @@ class CurriculumCfg:
     """Configuration for the curriculum."""
 
     pass
-
-
-@configclass
-class RoboticEnvIkCfg(ManagerBasedEnvCfg):
-    """Configuration for the robotic ultrasound environment."""
-
-    # scene settings
-    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
-    # Basic settings
-    observations = ObservationsCfg()
-    actions = ActionsCfg()
-    events = EventCfg()
-
-    def __post_init__(self) -> None:
-        """Post initialization."""
-        # viewer settings
-        self.viewer.eye = [4.5, 0.0, 6.0]
-        self.viewer.lookat = [0.0, 0.0, 2.0]
-        # step settings
-        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
-        # simulation settings
-        self.sim.dt = 0.005  # sim step every 5ms: 200Hz
-
-        # configure the action
-        self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
-            asset_name="robot",
-            joint_names=["panda_joint.*"],
-            body_name="panda_hand",
-            controller=DifferentialIKControllerCfg(
-                command_type="pose", use_relative_mode=False, ik_method="dls"
-            ),
-            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(
-                pos=[0.0, 0.0, 0.107]
-            ),
-        )
-
-
-
-@configclass
-class RoboticEnvCfg(ManagerBasedEnvCfg):
-    """Configuration for the robotic ultrasound environment."""
-
-    # scene settings
-    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
-    # Basic settings
-    observations = ObservationsCfg()
-    actions = ActionsCfg()
-    events = EventCfg()
-
-    def __post_init__(self) -> None:
-        """Post initialization."""
-        # viewer settings
-        self.viewer.eye = [4.5, 0.0, 6.0]
-        self.viewer.lookat = [0.0, 0.0, 2.0]
-        # step settings
-        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
-        # simulation settings
-        self.sim.dt = 0.005  # sim step every 5ms: 200Hz
-
-        self.actions.arm_action = mdp.JointPositionActionCfg(
-            asset_name="robot",
-            joint_names=["panda_joint.*"],
-            scale=1.0,
-            use_default_offset=True,
-        )
-
 
 @configclass
 class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):

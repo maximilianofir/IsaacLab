@@ -8,7 +8,14 @@
 Since Stable-Baselines3 does not support buffers living on GPU directly,
 we recommend using smaller number of environments. Otherwise,
 there will be significant overhead in GPU->CPU transfer.
+
+.. code-block:: bash
+
+    # Usage
+    ./isaaclab.bat -p source/standalone/myapps/RLTraining.py --camera_images
+
 """
+
 
 """Launch Isaac Sim Simulator first."""
 
