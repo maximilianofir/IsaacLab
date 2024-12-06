@@ -70,8 +70,8 @@ from omni.isaac.lab_tasks.utils.wrappers.sb3 import Sb3VecEnvWrapper, process_sb
 
 import omni.isaac.lab_tasks.manager_based.manipulation.ultrasound.config.franka.franka_manager_rl_env_cfg as ultrasound 
 
-@hydra_task_config(args_cli.task, "sb3_cfg_entry_point")
-def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
+@hydra_task_config("Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0", "sb3_cfg_entry_point")
+def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs):
     """Train with stable-baselines agent."""
     # randomly sample a seed if seed = -1
     if args_cli.seed == -1:
@@ -90,7 +90,7 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
     # directory for logging into
-    log_dir = os.path.join("logs", "sb3", args_cli.task, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    log_dir = os.path.join("logs", "sb3", "test-task", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     #dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
@@ -133,14 +133,49 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
         )
 
     # create agent from stable baselines
-    agent = PPO(policy_arch, env, verbose=1, **agent_cfg)
+    #agent = PPO(policy_arch, env, verbose=1, **agent_cfg)
+
+    policy_kwargs = {
+        "net_arch": [dict(pi=[256, 256], vf=[256, 256])],
+        #"activation_fn": "torch.nn.Tanh"
+    }
+
+    # Initialize PPO with explicit parameters
+    agent = PPO(
+        policy="MlpPolicy",
+        env=env,
+        learning_rate=3e-4,
+        n_steps=100,
+        batch_size=64,
+        n_epochs=10,
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_range=0.2,
+        clip_range_vf=None,
+        normalize_advantage=True,
+        ent_coef=0.0,
+        vf_coef=0.5,
+        max_grad_norm=0.5,
+        use_sde=False,
+        sde_sample_freq=-1,
+        target_kl=None,
+        tensorboard_log=log_dir,
+        policy_kwargs=policy_kwargs,
+        verbose=1,
+        device="cuda"
+    )
+
+
     # configure the logger
     new_logger = configure(log_dir, ["stdout", "tensorboard"])
     agent.set_logger(new_logger)
 
     # callbacks for agent
+    print("[INFO] Setting checkpoint callback")
     checkpoint_callback = CheckpointCallback(save_freq=1000, save_path=log_dir, name_prefix="model", verbose=2)
     # train the agent
+    
+    print("[INFO] Starting agent training")
     agent.learn(total_timesteps=n_timesteps, callback=checkpoint_callback)
     # save the final model
     agent.save(os.path.join(log_dir, "model"))
@@ -154,7 +189,7 @@ if __name__ == "__main__":
     # TODO: add to argparse
 
     # Load a YAML file
-    with open("rl_config.yaml", "r") as file:
+    with open("C:/Users/tirindelli/ImFusionProjects/IsaacLab/source/standalone/myapps/rl_config.yaml", "r") as file:
         agent_config = yaml.safe_load(file)  # Use safe_load for security
 
     envConfig = ultrasound.RoboticIkRlEnvCfg()

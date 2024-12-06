@@ -60,7 +60,7 @@ class RoboticSoftCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/organs",
         init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
         spawn=sim_utils.UsdFileCfg(
-            usd_path="omniverse://localhost/Library/ultrasound/environment/organ_rigid.usda",
+            usd_path="C:/Users/tirindelli/ProjectsData/IsaacLab/ultrasound/organ_rigid.usda",
             scale=(0.00254, 0.00254, 0.00254),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
             mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
