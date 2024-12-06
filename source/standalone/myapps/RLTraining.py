@@ -12,7 +12,7 @@ there will be significant overhead in GPU->CPU transfer.
 .. code-block:: bash
 
     # Usage
-    ./isaaclab.bat -p source/standalone/myapps/RLTraining.py --camera_images
+    ./isaaclab.bat -p source/standalone/myapps/RLTraining.py --enable_cameras 
 
 """
 
@@ -45,7 +45,7 @@ if args_cli.video:
 sys.argv = [sys.argv[0]] + hydra_args
 
 # launch omniverse app
-app_launcher = AppLauncher(args_cli)
+app_launcher = AppLauncher(headless=True, enable_cameras=True)
 simulation_app = app_launcher.app
 
 """Rest everything follows."""
@@ -142,7 +142,7 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs
 
     # Initialize PPO with explicit parameters
     agent = PPO(
-        policy="MlpPolicy",
+        policy="MultiInputPolicy", # MultiInputPolicy, MlpPolicy
         env=env,
         learning_rate=3e-4,
         n_steps=100,
