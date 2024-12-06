@@ -6,9 +6,8 @@
 
 from dataclasses import MISSING
 import omni.isaac.lab.sim as sim_utils
-import omni.isaac.lab.envs.mdp as mdp
 
-from omni.isaac.lab.assets import AssetBaseCfg, ArticulationCfg
+from omni.isaac.lab.assets import AssetBaseCfg, ArticulationCfg, RigidObjectCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.managers import EventTermCfg as EventTerm
@@ -21,11 +20,13 @@ from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
 
 from omni.isaac.lab.envs import ManagerBasedRLEnvCfg, ManagerBasedEnvCfg
 from omni.isaac.lab.controllers import DifferentialIKControllerCfg
-from omni.isaac.lab.envs.mdp.actions.actions_cfg import DifferentialInverseKinematicsActionCfg
-
+from omni.isaac.lab.envs.mdp.actions.actions_cfg import (
+    DifferentialInverseKinematicsActionCfg,
+)
 
 from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG
 
+from .import mdp
 
 @configclass
 class RoboticSoftCfg(InteractiveSceneCfg):
@@ -33,39 +34,65 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",
         init_state=AssetBaseCfg.InitialStateCfg(pos=[0, 0, -1.05]),
-        spawn=sim_utils.GroundPlaneCfg())
+        spawn=sim_utils.GroundPlaneCfg(),
+    )
 
     # lights
     dome_light = AssetBaseCfg(
-        prim_path="/World/Light", spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
+        prim_path="/World/Light",
+        spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
     table = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Table",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]),
-        spawn=sim_utils.UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]
+        ),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"
+        ),
     )
 
     # body
     # spawn the organ model onto the table, it needs to be scaled (1/10 of an inch?)
-    organs = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/Organs",
-                          init_state=AssetBaseCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
-                          spawn=sim_utils.UsdFileCfg(usd_path=R"C:\Users\mmoller\OneDrive - NVIDIA Corporation\Documents\projects\ImFusion\shared\roboticUltrasound\ultrasound\environment\organ.usda",
-                                                     scale=(0.00254, 0.00254, 0.00254)))
+    # the model with _rigid was modified in USDComposer to have rigid body properties.
+    # Leaving the props empty will use the default values.
+    organs = RigidObjectCfg(
+        prim_path="{ENV_REGEX_NS}/organs",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path="omniverse://localhost/Library/ultrasound/environment/organ_rigid.usda",
+            scale=(0.00254, 0.00254, 0.00254),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
+    )
 
     # articulation
-    robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/Robot"
+    )
 
 
 ##
 # MDP settings
 ##
 
+
 @configclass
 class CommandsCfg:
     """Command terms for the MDP."""
 
-    # no commands for this MDP
-    null = mdp.NullCommandCfg()
+    target_pose = mdp.UniformPoseCommandCfg(
+        asset_name="robot",
+        body_name=MISSING,  # will be set by agent env cfg
+        resampling_time_range=(5.0, 5.0),
+        debug_vis=True,
+        ranges=mdp.UniformPoseCommandCfg.Ranges(
+            pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
+        ),
+    )
+
 
 @configclass
 class ActionsCfg:
@@ -74,7 +101,10 @@ class ActionsCfg:
     # set the joint positions as target
     # joint_pos_des = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=1.0, use_default_offset=True)
     # overwrite in post_init
-    arm_action: mdp.JointPositionActionCfg | mdp.DifferentialInverseKinematicsActionCfg = MISSING
+    arm_action: (
+        mdp.JointPositionActionCfg | mdp.DifferentialInverseKinematicsActionCfg
+    ) = MISSING
+
 
 @configclass
 class ObservationsCfg:
@@ -89,6 +119,9 @@ class ObservationsCfg:
         # observation terms (order preserved)
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
+        object_position = ObsTerm(func=mdp.object_position_in_robot_root_frame)
+        target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "target_pose"})
+        actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
@@ -97,11 +130,26 @@ class ObservationsCfg:
     # observation groups
     policy: PolicyCfg = PolicyCfg()
 
+
 @configclass
 class EventCfg:
     """Configuration for events."""
 
+    # the reset scene to event function already resets all rigid objects and articulations to rheir default states.
+    # this needs to be executed before any other reset function, to not overwrite the reset scene to default.
     reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+
+    # the second reset only affects the organ body, and adds a random offset to the organ body, w.r.t to the current position.
+    reset_object_position = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (-0, -0.1)},
+            "velocity_range": {},
+            "asset_cfg": SceneEntityCfg("organs"),
+        },
+    )
+
 
 @configclass
 class RewardsCfg:
@@ -111,6 +159,9 @@ class RewardsCfg:
     alive = RewTerm(func=mdp.is_alive, weight=1.0)
     # (2) Failure penalty
     terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
+
+    # distance_to_patient = RewTerm(func=mdp.distance_to_patient, weight=1.0)
+    # align_ee_patient = RewTerm(func=mdp.align_ee_patient, weight=1.0)
 
 
 @configclass
@@ -122,7 +173,10 @@ class TerminationsCfg:
     # (2) Cart out of bounds
     robot_out_of_bounds = DoneTerm(
         func=mdp.joint_pos_out_of_manual_limit,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["panda_joint.*"]), "bounds": (-3.0, 3.0)},
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["panda_joint.*"]),
+            "bounds": (-3.0, 3.0),
+        },
     )
 
 
@@ -159,9 +213,15 @@ class RoboticEnvIkCfg(ManagerBasedEnvCfg):
             asset_name="robot",
             joint_names=["panda_joint.*"],
             body_name="panda_hand",
-            controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
-            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.107]),
+            controller=DifferentialIKControllerCfg(
+                command_type="pose", use_relative_mode=False, ik_method="dls"
+            ),
+            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(
+                pos=[0.0, 0.0, 0.107]
+            ),
         )
+
+
 
 @configclass
 class RoboticEnvCfg(ManagerBasedEnvCfg):
@@ -184,7 +244,12 @@ class RoboticEnvCfg(ManagerBasedEnvCfg):
         # simulation settings
         self.sim.dt = 0.005  # sim step every 5ms: 200Hz
 
-        self.actions.arm_action = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["panda_joint.*"], scale=1.0, use_default_offset=True)
+        self.actions.arm_action = mdp.JointPositionActionCfg(
+            asset_name="robot",
+            joint_names=["panda_joint.*"],
+            scale=1.0,
+            use_default_offset=True,
+        )
 
 
 @configclass
@@ -223,6 +288,14 @@ class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
             asset_name="robot",
             joint_names=["panda_joint.*"],
             body_name="panda_hand",
-            controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
-            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.107]),
+            controller=DifferentialIKControllerCfg(
+                command_type="pose", use_relative_mode=False, ik_method="dls"
+            ),
+            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(
+                pos=[0.0, 0.0, 0.107]
+            ),
         )
+
+        # Set the body name for the end effector
+        self.commands.target_pose.body_name = "panda_hand"
+

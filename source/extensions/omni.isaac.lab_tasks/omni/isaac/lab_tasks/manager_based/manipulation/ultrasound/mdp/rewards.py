@@ -1,0 +1,80 @@
+# Copyright (c) 2022-2024, The Isaac Lab Project Developers.
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+from __future__ import annotations
+
+import torch
+from typing import TYPE_CHECKING
+
+from omni.isaac.lab.managers import SceneEntityCfg
+from omni.isaac.lab.utils.math import matrix_from_quat
+
+if TYPE_CHECKING:
+    from omni.isaac.lab.envs import ManagerBasedRLEnv
+
+
+def approach_ee_patient(env: ManagerBasedRLEnv, ground_truth_pos_wrt_organ: torch.tensor, threshold: float) -> torch.Tensor:
+    r"""Reward the robot for reaching the patient body using inverse-square law.
+
+    It uses a piecewise function to reward the robot for reaching the scan location on the patient body.
+
+    .. math::
+
+        reward = \begin{cases}
+            2 * (1 / (1 + distance^2))^2 & \text{if } distance \leq threshold \\
+            (1 / (1 + distance^2))^2 & \text{otherwise}
+        \end{cases}
+
+    """
+    #TODO: check if t the matrix multiplication is correct
+    ee_tcp_pos = env.scene["ee_frame"].data.target_pos_w[..., 0, :]
+    
+    organ_pos = env.scene["organs"].data.target_pos_w[..., 0, :]
+    gt_pose_w = torch.mm(organ_pos, ground_truth_pos_wrt_organ);
+
+    # Compute the distance of the end-effector to the handle
+    distance = torch.norm(gt_pose_w - ee_tcp_pos, dim=-1, p=2)
+
+    # Reward the robot for reaching the handle
+    reward = 1.0 / (1.0 + distance**2)
+    reward = torch.pow(reward, 2)
+    return torch.where(distance <= threshold, 2 * reward, reward)
+
+
+def align_ee_patien(env: ManagerBasedRLEnv, ground_truth_rot_wrt_organ: torch.tensor, ) -> torch.Tensor:
+    """Reward for aligning the end-effector with the patient.
+
+    The reward is based on the alignment of the probe (robot flange) with the scan pose on the patient surface. 
+    It is computed as follows:
+
+    .. math::
+
+        reward = 0.5 * (align_z^2 + align_x^2)
+
+    where :math:`align_z` is the dot product of the z direction of the probe (flange) and the -x direction of the scan pose
+    and :math:`align_x` is the dot product of the x direction of the probe and the -y direction of the scan pose.
+    """
+    ee_tcp_quat = env.scene["ee_frame"].data.target_quat_w[..., 0, :]
+    ee_tcp_rot_mat = matrix_from_quat(ee_tcp_quat)
+
+    organ_quat = env.scene["organs"].data.target_quat_w[..., 0, :]
+    organ_rot_mat = matrix_from_quat(organ_quat)
+
+    gt_pose_mat_wrt_organ = matrix_from_quat(ground_truth_rot_wrt_organ)
+
+    #TODO: check if the matrix multiplication is correct 
+    gt_pose_mat = torch.mm( organ_rot_mat, gt_pose_mat_wrt_organ)
+    
+
+    # get current x and y direction of the handle
+    gt_x, gt_y, gt_z = gt_pose_mat[..., 0], gt_pose_mat[..., 1], gt_pose_mat[..., 2]
+    # get current x and y direction of the gripper
+    ee_tcp_x, ee_tcp_y,ee_tcp_z = ee_tcp_rot_mat[..., 0], ee_tcp_rot_mat[..., 1], ee_tcp_rot_mat[..., 2]
+
+    align_x = torch.bmm(ee_tcp_x.unsqueeze(1), -gt_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    align_y = torch.bmm(ee_tcp_y.unsqueeze(1), -gt_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    align_z = torch.bmm(ee_tcp_z.unsqueeze(1), -gt_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+   
+    return 1/3 * (torch.sign(align_x) * align_x**2) + (torch.sign(align_y) * align_y**2 + (torch.sign(align_z) * align_z**2))
