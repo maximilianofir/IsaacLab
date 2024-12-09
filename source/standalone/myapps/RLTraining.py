@@ -125,8 +125,35 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
             clip_reward=np.inf,
         )
 
-    # create agent from stable baselines
-    agent = PPO(policy_arch, env, verbose=1, **agent_cfg)
+    policy_kwargs = {
+        "net_arch": [dict(pi=[256, 256], vf=[256, 256])],
+        #"activation_fn": "torch.nn.Tanh"
+    }
+
+    # Initialize PPO with explicit parameters
+    agent = PPO(
+        policy="MultiInputPolicy", # MultiInputPolicy, MlpPolicy
+        env=env,
+        learning_rate=3e-4,
+        n_steps=100,
+        batch_size=64,
+        n_epochs=10,
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_range=0.2,
+        clip_range_vf=None,
+        normalize_advantage=True,
+        ent_coef=0.0,
+        vf_coef=0.5,
+        max_grad_norm=0.5,
+        use_sde=False,
+        sde_sample_freq=-1,
+        target_kl=None,
+        tensorboard_log=log_dir,
+        policy_kwargs=policy_kwargs,
+        verbose=1,
+        device="cuda"
+    )
     # configure the logger
     new_logger = configure(log_dir, ["stdout", "tensorboard"])
     agent.set_logger(new_logger)

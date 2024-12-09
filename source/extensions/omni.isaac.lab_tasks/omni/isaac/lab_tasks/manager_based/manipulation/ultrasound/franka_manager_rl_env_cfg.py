@@ -7,7 +7,6 @@
 from dataclasses import MISSING
 
 import omni.isaac.lab.sim as sim_utils
-
 from omni.isaac.lab.assets import AssetBaseCfg, ArticulationCfg, RigidObjectCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
@@ -18,6 +17,7 @@ from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.managers import RewardTermCfg as RewTerm
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
+from omni.isaac.lab.sensors import CameraCfg
 
 from omni.isaac.lab.envs import ManagerBasedRLEnvCfg, ManagerBasedEnvCfg
 from omni.isaac.lab.controllers import DifferentialIKControllerCfg
@@ -75,6 +75,21 @@ class RoboticSoftCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot"
     )
 
+    # sensors
+    camera = CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/panda_link7/front_cam",
+        update_period=0.0,
+        history_length=1,  # Must be > 0
+        height=480,
+        width=640,
+        data_types=["rgb", "distance_to_image_plane"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        ),
+        # corresponds to 180 degree rotation around x-axis
+        offset=CameraCfg.OffsetCfg(pos=(0.2, 0.0, -0.5), rot=(1, 0, 0, 0), convention="ros"),
+    )
+
 
 ##
 # MDP settings
@@ -125,9 +140,12 @@ class ObservationsCfg:
         target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "target_pose"})
         actions = ObsTerm(func=mdp.last_action)
 
+        # Add camera observation
+        camera_rgbd = ObsTerm(func=mdp.camera_rgbd_observation)
+
         def __post_init__(self) -> None:
             self.enable_corruption = False
-            self.concatenate_terms = True
+            self.concatenate_terms = False
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -142,15 +160,15 @@ class EventCfg:
     reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
     # the second reset only affects the organ body, and adds a random offset to the organ body, w.r.t to the current position.
-    reset_object_position = EventTerm(
-        func=mdp.reset_root_state_uniform,
-        mode="reset",
-        params={
-            "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (-0, -0.1)},
-            "velocity_range": {},
-            "asset_cfg": SceneEntityCfg("organs"),
-        },
-    )
+    # reset_object_position = EventTerm(
+    #     func=mdp.reset_root_state_uniform,
+    #     mode="reset",
+    #     params={
+    #         "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (-0, -0.1)},
+    #         "velocity_range": {},
+    #         "asset_cfg": SceneEntityCfg("organs"),
+    #     },
+    # )
 
 
 @configclass
