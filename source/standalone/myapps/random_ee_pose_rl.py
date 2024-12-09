@@ -40,10 +40,7 @@ import gymnasium as gym
 import random
 import torch
 
-import omni.isaac.lab_tasks  # noqa: F401
-from omni.isaac.lab_tasks.utils.parse_cfg import get_checkpoint_path, load_cfg_from_registry, parse_env_cfg
-from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedRLEnv
-from common import RoboticIkRlEnvCfg
+from omni.isaac.lab_tasks.utils.parse_cfg import parse_env_cfg
 
 
 def main():
@@ -55,16 +52,20 @@ def main():
     # env_cfg = load_cfg_from_registry(args_cli.task, "env_cfg_entry_point")
     # create environment
     env = gym.make(args_cli.task, cfg=env_cfg)
+    print(f"[INFO]: Gym observation space: {env.observation_space}")
+    print(f"[INFO]: Gym action space: {env.action_space}")
     # # parse the arguments
     # env_cfg = RoboticIkRlEnvCfg()
     # env_cfg.scene.num_envs = args_cli.num_envs
     # setup base environment
     # env = ManagerBasedRLEnv(cfg=env_cfg)
-    # controller 
-    total_action_dim = env.action_manager.total_action_dim
-    print(f"Total action dim: {total_action_dim}")
+    # env.get_wrapper_attr('action_manager')
+    action_manager = env.get_wrapper_attr('action_manager')
+    total_action_dim = action_manager.total_action_dim
+    # print(f"Total action dim: {total_action_dim}")
     # robot 
-    robot = env.scene["robot"]
+    scene = env.get_wrapper_attr('scene')
+    robot = scene["robot"]
 
     # simulate physics
     count = 0

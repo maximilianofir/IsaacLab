@@ -1,4 +1,23 @@
 # README Isaac Lab robotic ultrasound
+
+# Requirements
+1. Follow [instructions](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/pip_installation.html) to install IsaacLab. [Miniconda](https://docs.anaconda.com/miniconda/install/#quick-command-line-install) is suggested for virtual environment setup.
+
+
+2. Download [Omniverse Launcher](https://developer.nvidia.com/omniverse#section-getting-started)
+
+3. Create a [local Nucleus server ](https://docs.omniverse.nvidia.com/nucleus/latest/workstation/installation.html#installing-nucleus-workstation)
+
+4. [Download](https://drive.google.com/drive/folders/1txXR1aXtIVWgvdAy_q21SLqIPs_3hs0j) the customized USD assets
+
+5. Extract the Usd files and move the ultrasound folder into your local nucleus folder, such that the files are available at `omniverse://localhost/Library/ultrasound/`
+
+6. Double-check the filepaths to the custom USDs, e.g. franka_realsense_no_world.usd and organ_rigid.usda
+
+
+
+
+
 ## Instructions 
 Before launching any of the apps, activate the environment
 ```sh
@@ -35,8 +54,13 @@ The folder structure resembles that of similar applications in the same parent f
 
 The \_\_init\_\_.py at (source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\\\_\_init__.py) shows how to register the environments defined in  "source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\franka_manager_rl_env_cfg.py"
 
+Windows:
 ```sh
 python "source\standalone\myapps\random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0
+```
+Linux:
+```sh
+python "source/standalone/myapps/random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0
 ```
 
 ##### Training
