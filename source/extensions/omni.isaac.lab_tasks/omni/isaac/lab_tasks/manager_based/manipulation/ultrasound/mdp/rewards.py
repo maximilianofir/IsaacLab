@@ -11,11 +11,38 @@ from typing import TYPE_CHECKING
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import matrix_from_quat
 
+from omni.isaac.lab.assets import RigidObject
+from omni.isaac.lab.sensors import FrameTransformer
+
+
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
 
-def approach_ee_patient(env: ManagerBasedRLEnv, ground_truth_pos_wrt_organ: torch.tensor, threshold: float) -> torch.Tensor:
+def object_ee_distance(
+    env: ManagerBasedRLEnv,
+    std: float,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("organs"),
+    ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
+) -> torch.Tensor:
+    """Reward the agent for reaching the object using tanh-kernel."""
+    # extract the used quantities (to enable type-hinting)
+    object: RigidObject = env.scene[object_cfg.name]
+    ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
+    # Target object position: (num_envs, 3)
+    target_pos_w = object.data.root_pos_w
+    # apply an offsett to the object position.
+    target_pos_w = target_pos_w + torch.tensor([0.0, -0.25, 1.0], device=target_pos_w.device)
+    # End-effector position: (num_envs, 3)
+    ee_w = ee_frame.data.target_pos_w[..., 0, :]
+    # Distance of the end-effector to the object: (num_envs,)
+    object_ee_distance = torch.norm(target_pos_w - ee_w, dim=1)
+
+    return 1 - torch.tanh(object_ee_distance / std)
+
+def approach_ee_patient(
+    env: ManagerBasedRLEnv, ground_truth_pos_wrt_organ: torch.tensor, threshold: float
+) -> torch.Tensor:
     r"""Reward the robot for reaching the patient body using inverse-square law.
 
     It uses a piecewise function to reward the robot for reaching the scan location on the patient body.
@@ -28,11 +55,11 @@ def approach_ee_patient(env: ManagerBasedRLEnv, ground_truth_pos_wrt_organ: torc
         \end{cases}
 
     """
-    #TODO: check if t the matrix multiplication is correct
+    # TODO: check if t the matrix multiplication is correct
     ee_tcp_pos = env.scene["ee_frame"].data.target_pos_w[..., 0, :]
-    
+
     organ_pos = env.scene["organs"].data.target_pos_w[..., 0, :]
-    gt_pose_w = torch.mm(organ_pos, ground_truth_pos_wrt_organ);
+    gt_pose_w = torch.mm(organ_pos, ground_truth_pos_wrt_organ)
 
     # Compute the distance of the end-effector to the handle
     distance = torch.norm(gt_pose_w - ee_tcp_pos, dim=-1, p=2)
@@ -43,10 +70,13 @@ def approach_ee_patient(env: ManagerBasedRLEnv, ground_truth_pos_wrt_organ: torc
     return torch.where(distance <= threshold, 2 * reward, reward)
 
 
-def align_ee_patien(env: ManagerBasedRLEnv, ground_truth_rot_wrt_organ: torch.tensor, ) -> torch.Tensor:
+def align_ee_patien(
+    env: ManagerBasedRLEnv,
+    ground_truth_rot_wrt_organ: torch.tensor,
+) -> torch.Tensor:
     """Reward for aligning the end-effector with the patient.
 
-    The reward is based on the alignment of the probe (robot flange) with the scan pose on the patient surface. 
+    The reward is based on the alignment of the probe (robot flange) with the scan pose on the patient surface.
     It is computed as follows:
 
     .. math::
@@ -64,17 +94,28 @@ def align_ee_patien(env: ManagerBasedRLEnv, ground_truth_rot_wrt_organ: torch.te
 
     gt_pose_mat_wrt_organ = matrix_from_quat(ground_truth_rot_wrt_organ)
 
-    #TODO: check if the matrix multiplication is correct 
-    gt_pose_mat = torch.mm( organ_rot_mat, gt_pose_mat_wrt_organ)
-    
+    # TODO: check if the matrix multiplication is correct
+    gt_pose_mat = torch.mm(organ_rot_mat, gt_pose_mat_wrt_organ)
 
     # get current x and y direction of the handle
     gt_x, gt_y, gt_z = gt_pose_mat[..., 0], gt_pose_mat[..., 1], gt_pose_mat[..., 2]
     # get current x and y direction of the gripper
-    ee_tcp_x, ee_tcp_y,ee_tcp_z = ee_tcp_rot_mat[..., 0], ee_tcp_rot_mat[..., 1], ee_tcp_rot_mat[..., 2]
+    ee_tcp_x, ee_tcp_y, ee_tcp_z = (
+        ee_tcp_rot_mat[..., 0],
+        ee_tcp_rot_mat[..., 1],
+        ee_tcp_rot_mat[..., 2],
+    )
 
-    align_x = torch.bmm(ee_tcp_x.unsqueeze(1), -gt_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
-    align_y = torch.bmm(ee_tcp_y.unsqueeze(1), -gt_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
-    align_z = torch.bmm(ee_tcp_z.unsqueeze(1), -gt_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
-   
-    return 1/3 * (torch.sign(align_x) * align_x**2) + (torch.sign(align_y) * align_y**2 + (torch.sign(align_z) * align_z**2))
+    align_x = (
+        torch.bmm(ee_tcp_x.unsqueeze(1), -gt_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    )
+    align_y = (
+        torch.bmm(ee_tcp_y.unsqueeze(1), -gt_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    )
+    align_z = (
+        torch.bmm(ee_tcp_z.unsqueeze(1), -gt_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    )
+
+    return 1 / 3 * (torch.sign(align_x) * align_x**2) + (
+        torch.sign(align_y) * align_y**2 + (torch.sign(align_z) * align_z**2)
+    )

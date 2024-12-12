@@ -68,5 +68,10 @@ python source/standalone/workflows/sb3/train.py --task Isaac-Cartpole-v0 --num_e
 
 Ours: 
 ```sh
-python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 1 --enable_cameras
+    python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 1 --enable_cameras
+```
+
+See logs: 
+```sh
+python -m tensorboard.main --logdir logs/sb3/Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0/2024-12-12_14-40-21/
 ```
