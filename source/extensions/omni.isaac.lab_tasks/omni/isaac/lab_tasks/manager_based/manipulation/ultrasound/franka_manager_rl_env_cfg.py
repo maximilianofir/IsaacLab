@@ -25,7 +25,10 @@ from omni.isaac.lab.envs.mdp.actions.actions_cfg import (
     DifferentialInverseKinematicsActionCfg,
 )
 
-from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG
+from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG, FRANKA_PANDA_HIGH_PD_CFG
+from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
+from omni.isaac.lab.sensors import FrameTransformerCfg
+from omni.isaac.lab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 
 from .import mdp
 
@@ -71,9 +74,15 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     )
 
     # articulation
-    robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
+    # robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
+    #     prim_path="{ENV_REGEX_NS}/Robot"
+    # )
+    # alternative robot without camera
+    robot: ArticulationCfg =  FRANKA_PANDA_HIGH_PD_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot"
     )
+    # end-effector sensor: will be populated by agent env cfg
+    ee_frame: FrameTransformerCfg = MISSING
 
     # sensors
     camera = CameraCfg(
@@ -100,15 +109,16 @@ class RoboticSoftCfg(InteractiveSceneCfg):
 class CommandsCfg:
     """Command terms for the MDP."""
 
-    target_pose = mdp.UniformPoseCommandCfg(
-        asset_name="robot",
-        body_name=MISSING,  # will be set by agent env cfg
-        resampling_time_range=(5.0, 5.0),
-        debug_vis=True,
-        ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
-        ),
-    )
+    # target_pose = mdp.UniformPoseCommandCfg(
+    #     asset_name="robot",
+    #     body_name=MISSING,  # will be set by agent env cfg
+    #     resampling_time_range=(5.0, 5.0),
+    #     debug_vis=True,
+    #     ranges=mdp.UniformPoseCommandCfg.Ranges(
+    #         pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
+    #     ),
+    # )
+    pass
 
 
 @configclass
@@ -137,7 +147,7 @@ class ObservationsCfg:
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
         object_position = ObsTerm(func=mdp.object_position_in_robot_root_frame)
-        target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "target_pose"})
+        # target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "target_pose"})
         actions = ObsTerm(func=mdp.last_action)
 
         # Add camera observation
@@ -160,15 +170,15 @@ class EventCfg:
     reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
     # the second reset only affects the organ body, and adds a random offset to the organ body, w.r.t to the current position.
-    # reset_object_position = EventTerm(
-    #     func=mdp.reset_root_state_uniform,
-    #     mode="reset",
-    #     params={
-    #         "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (-0, -0.1)},
-    #         "velocity_range": {},
-    #         "asset_cfg": SceneEntityCfg("organs"),
-    #     },
-    # )
+    reset_object_position = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (-0, -0.1)},
+            "velocity_range": {},
+            "asset_cfg": SceneEntityCfg("organs"),
+        },
+    )
 
 
 @configclass
@@ -217,6 +227,11 @@ class RoboticEnvIkCfg(ManagerBasedEnvCfg):
     observations = ObservationsCfg()
     actions = ActionsCfg()
     events = EventCfg()
+    commands = CommandsCfg()
+    # MDP settings
+    terminations: TerminationsCfg = TerminationsCfg()
+    rewards: RewardsCfg = RewardsCfg()
+    curriculum: CurriculumCfg = CurriculumCfg()
 
     def __post_init__(self) -> None:
         """Post initialization."""
@@ -227,6 +242,8 @@ class RoboticEnvIkCfg(ManagerBasedEnvCfg):
         self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
         # simulation settings
         self.sim.dt = 0.005  # sim step every 5ms: 200Hz
+        self.episode_length_s = 5.0
+
 
         # configure the action
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
@@ -239,6 +256,39 @@ class RoboticEnvIkCfg(ManagerBasedEnvCfg):
             body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(
                 pos=[0.0, 0.0, 0.107]
             ),
+        )
+        # self.commands.target_pose.body_name = "panda_hand"
+
+        # set a different start pose for the robot
+        joint_pos={
+            "panda_joint1": 0.0,
+            "panda_joint2": -0.01,
+            "panda_joint3": 0.0,
+            "panda_joint4": -1.0, 
+            "panda_joint5": 0.0,
+            "panda_joint6": 3.037,
+            "panda_joint7": 0.741,
+            "panda_finger_joint.*": 0.04,
+        }
+        self.scene.robot.init_state.joint_pos = joint_pos
+
+        # Listens to the required transforms
+        marker_cfg = FRAME_MARKER_CFG.copy()
+        marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
+        marker_cfg.prim_path = "/Visuals/FrameTransformer"
+        self.scene.ee_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/panda_link0",
+            debug_vis=False,
+            visualizer_cfg=marker_cfg,
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/panda_hand",
+                    name="end_effector",
+                    offset=OffsetCfg(
+                        pos=[0.0, 0.0, 0.1034],
+                    ),
+                ),
+            ],
         )
 
 
@@ -286,7 +336,7 @@ class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
     curriculum: CurriculumCfg = CurriculumCfg()
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
-    # No command generator
+    # The command generator should suggest the next target pose for the action
     commands: CommandsCfg = CommandsCfg()
 
     # Post initialization
@@ -317,5 +367,22 @@ class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
         )
 
         # Set the body name for the end effector
-        self.commands.target_pose.body_name = "panda_hand"
-
+        # self.commands.target_pose.body_name = "panda_hand"
+        # Listens to the required transforms
+        marker_cfg = FRAME_MARKER_CFG.copy()
+        marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
+        marker_cfg.prim_path = "/Visuals/FrameTransformer"
+        self.scene.ee_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/panda_link0",
+            debug_vis=False,
+            visualizer_cfg=marker_cfg,
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/panda_hand",
+                    name="end_effector",
+                    offset=OffsetCfg(
+                        pos=[0.0, 0.0, 0.1034],
+                    ),
+                ),
+            ],
+        )

@@ -25,12 +25,21 @@ from .config.franka import agents
 ##
 
 gym.register(
-    id="Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0",
+    id="Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
     kwargs={
         "env_cfg_entry_point": franka_manager_rl_env_cfg.RoboticIkRlEnvCfg,
         "sb3_cfg_entry_point": f"{agents.__name__}:sb3_ppo_cfg.yaml",
 
+    },
+    disable_env_checker=True,
+)
+
+gym.register(
+    id="Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0",
+    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
+    kwargs={
+        "env_cfg_entry_point": franka_manager_rl_env_cfg.RoboticEnvIkCfg,
     },
     disable_env_checker=True,
 )
