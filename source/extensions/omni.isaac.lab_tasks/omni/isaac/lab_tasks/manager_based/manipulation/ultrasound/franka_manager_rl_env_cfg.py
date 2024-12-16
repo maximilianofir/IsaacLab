@@ -30,6 +30,12 @@ from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 from omni.isaac.lab.sensors import FrameTransformerCfg
 from omni.isaac.lab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 
+from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
+
+
+FRAME_MARKER_SMALL_CFG = FRAME_MARKER_CFG.copy()
+FRAME_MARKER_SMALL_CFG.markers["frame"].scale = (0.10, 0.10, 0.10)
+
 from . import mdp
 
 
@@ -105,6 +111,25 @@ class RoboticSoftCfg(InteractiveSceneCfg):
         ),
     )
 
+    # Frame definitions for the goal frame
+    goal_frame = FrameTransformerCfg(
+        prim_path="{ENV_REGEX_NS}/organs/models_topo_blender",
+        debug_vis=True,
+        visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/goal_frame"),
+        target_frames=[
+            FrameTransformerCfg.FrameCfg(
+                prim_path="{ENV_REGEX_NS}/organs/models_topo_blender",
+                name="goal_frame",
+                offset=OffsetCfg(
+                    pos=(0.0, -0.25, 1.0),
+                    rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
+                ),
+            ),
+        ],
+    )
+
+
+
 
 ##
 # MDP settings
@@ -136,6 +161,7 @@ class CommandsCfg:
             yaw=(0.0, 0.0),
         ),
     )
+
 
 
 @configclass
@@ -355,7 +381,7 @@ class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     # The command generator should ...
-    commands: CommandsCfg = CommandsCfg()
+    commands: CommandsCfg = EmptyCommandsCfg()
 
     # Post initialization
     def __post_init__(self) -> None:
@@ -398,15 +424,16 @@ class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
         )
 
         # Set the body name for the end effector
-        self.commands.target_pose.body_name = "panda_hand"
+        # self.commands.target_pose.body_name = "panda_hand"
 
         # Listens to the required transforms
         marker_cfg = FRAME_MARKER_CFG.copy()
         marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
-        marker_cfg.prim_path = "/Visuals/FrameTransformer"
+        marker_cfg.prim_path = "/Visuals/ee_frame"
+
         self.scene.ee_frame = FrameTransformerCfg(
             prim_path="{ENV_REGEX_NS}/Robot/panda_link0",
-            debug_vis=False,
+            debug_vis=True,
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(

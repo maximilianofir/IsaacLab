@@ -37,7 +37,11 @@ Without any learning, we can control the robot to reach positions, or full poses
 ```sh
 python "source/standalone/myapps/reach_torso.py" --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0 --enable_cameras
 ```
+You can launch multiple instances (2) by appending: 
+`--num_envs 2`
+
 Todo: extent into a state machine, with multiple goals
+
 
 
 
@@ -51,24 +55,27 @@ The folder structure resembles that of similar applications in the same parent f
 
 The \_\_init\_\_.py at (source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\\\_\_init__.py) shows how to register the environments defined in  "source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\franka_manager_rl_env_cfg.py"
 
-Windows:
+<!-- Windows:
 ```sh
 python "source\standalone\myapps\random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 
 ```
 Linux:
 ```sh
-python "source/standalone/myapps/random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras
+python "source/standalone/myapps/random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 2 -->
 ```
 
 ### Training
 The example from the tutorial
 ```sh
 python source/standalone/workflows/sb3/train.py --task Isaac-Cartpole-v0 --num_envs 64
+
+# Franka draw 
+python source/standalone/workflows/rl_games/train.py --task Isaac-Open-Drawer-Franka-v0 --num_envs 2
 ```
 
 Ours: 
 ```sh
-    python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 1 --enable_cameras
+python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 1 --enable_cameras --num_envs 2
 ```
 
 See logs: 
