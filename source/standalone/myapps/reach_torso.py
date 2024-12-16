@@ -99,19 +99,23 @@ def main():
             # get the current pose of the target object
             object_data = env.unwrapped.scene["organs"].data
             # print("object_data:", object_data)
-            object_position = object_data.root_pos_w - env.unwrapped.scene.env_origins
+            object_position = object_data.root_pos_w
             object_orientation = object_data.root_quat_w
             # target position above the object position
-            target_position = object_position + torch.tensor([0.0, -0.25, 1.0], device=robot.device)
+            target_position = object_position + torch.tensor([0.0, -0.25, 1.0], device=robot.device) 
 
+            # get the target position in each robot's base frame 
+            target_position_robot_frame = target_position - env.unwrapped.scene.env_origins
             # # Get the desired position from the command manager
             # desired_position = env.unwrapped.command_manager.get_command("target_pose")[..., :3]
             # print("desired_position:", desired_position)
             quaternion = [0.0, 1.0, 0.0, 0.0]
+            # repeat the quaternion for all the environments
+            quaternion = torch.tensor(quaternion, device=robot.device).repeat(env_cfg.scene.num_envs, 1)
             ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
 
             # concatenate the position and orientation
-            end_effector_pose_tensor = torch.cat([target_position[0], torch.tensor(quaternion, device=robot.device)]) 
+            end_effector_pose_tensor = torch.cat([target_position_robot_frame, quaternion], dim=1) 
             # print("end_effector_pose:", end_effector_pose_tensor)
             # print("end_effector_pose.shape:", end_effector_pose_tensor.shape)
             # end_effector_pose_tensor = torch.tensor(end_effector_pose, device=robot.device)
@@ -128,9 +132,9 @@ def main():
             # update counter
             count += 1
 
-        ee_marker.visualize(ee_pose_w[:, 0:3], ee_pose_w[:, 3:7])
-        goal_marker.visualize(target_position[:, 0:3], object_orientation[:, :4])
-        body_marker.visualize(object_position, object_orientation)
+            ee_marker.visualize(ee_pose_w[:, 0:3], ee_pose_w[:, 3:7])
+            goal_marker.visualize(target_position[:, 0:3], object_orientation[:, :4])
+            body_marker.visualize(object_position, object_orientation)
     # close the environment
     env.close()
 
