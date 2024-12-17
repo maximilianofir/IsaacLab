@@ -30,6 +30,7 @@ def object_position_in_robot_root_frame(
     )
     return object_pos_b
 
+
 # see : https://github.com/isaac-sim/IsaacLab/blob/main/source/extensions/omni.isaac.lab_tasks/omni/isaac/lab_tasks/manager_based/classic/cartpole/cartpole_camera_env_cfg.py
 def camera_rgbd_observation(
     env: ManagerBasedRLEnv,
@@ -38,16 +39,16 @@ def camera_rgbd_observation(
     """Get RGBD data from the front camera."""
     # Get the camera from the scene
     camera = env.scene.sensors["camera"]
-    
-    #camera.update()
-   # camera.update()
+
+    # camera.update()
+    # camera.update()
     # Get RGB and depth data
-    output = camera.data.output # Shape: (N, H, W, 3)
-    
-    rgb_data = output['rgb']
-    depth_data = output['distance_to_image_plane']  # Shape: (N, H, W, 1)
-    
+    output = camera.data.output  # Shape: (N, H, W, 3)
+
+    rgb_data = output["rgb"]
+    depth_data = output["distance_to_image_plane"]  # Shape: (N, H, W, 1)
+
     # Concatenate RGB and depth data
     rgbd_data = torch.cat([rgb_data, depth_data], dim=-1)  # Shape: (N, H, W, 4)
-    
+
     return rgbd_data

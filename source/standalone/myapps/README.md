@@ -62,9 +62,10 @@ python "source\standalone\myapps\random_ee_pose_rl.py" --task Isaac-Robotic-Ultr
 Linux:
 ```sh
 python "source/standalone/myapps/random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 2 -->
-```
+
 
 ### Training
+
 The example from the tutorial
 ```sh
 python source/standalone/workflows/sb3/train.py --task Isaac-Cartpole-v0 --num_envs 64
@@ -74,11 +75,24 @@ python source/standalone/workflows/rl_games/train.py --task Isaac-Open-Drawer-Fr
 ```
 
 Ours: 
+- Increase `--num_envs 2` as needed
+- save videos `--video`
 ```sh
-python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 1 --enable_cameras --num_envs 2
+python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 64 --video
 ```
 
 See logs: 
 ```sh
 python -m tensorboard.main --logdir logs/sb3/Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0/2024-12-12_14-40-21/
+```
+
+### Play
+
+```sh
+python source/standalone/myapps/play.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 32 --use_last_checkpoint --enable_cameras 
+```
+
+optionally define the path to the checkpoint to load. 
+```sh
+python source/standalone/myapps/play.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 32 --checkpoint "/home/maxofir/repos/forks/IsaacLab/logs/sb3/Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0/2024-12-16_14-48-00/model_155000_steps.zip" --enable_cameras 
 ```

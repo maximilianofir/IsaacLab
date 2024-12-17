@@ -229,16 +229,20 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # task terms
-    reaching_object = RewTerm(func=mdp.object_ee_distance, params={"std": 0.1}, weight=1.0)
+    reaching_object = RewTerm(func=mdp.object_ee_distance, weight=2.0, params={"threshold": 0.2})
+    align_ee_handle = RewTerm(func=mdp.align_ee_handle, weight=0.5)
 
     # (1) Constant running reward
     alive = RewTerm(func=mdp.is_alive, weight=0.1)
-    # (2) Failure penalty
-    terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
+    # # (2) Failure penalty
+    # terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
 
     # distance_to_patient = RewTerm(func=mdp.distance_to_patient, weight=1.0)
     # align_ee_patient = RewTerm(func=mdp.align_ee_patient, weight=1.0)
 
+    # 4. Penalize actions for cosmetic reasons
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-1e-2)
+    joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.0001)
 
 @configclass
 class TerminationsCfg:

@@ -21,9 +21,9 @@ if TYPE_CHECKING:
 
 def object_ee_distance(
     env: ManagerBasedRLEnv,
-    std: float,
     object_cfg: SceneEntityCfg = SceneEntityCfg("organs"),
     ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
+    threshold: float = 0.1,
 ) -> torch.Tensor:
     """Reward the agent for reaching the object using tanh-kernel."""
     # extract the used quantities (to enable type-hinting)
@@ -38,7 +38,43 @@ def object_ee_distance(
     # Distance of the end-effector to the object: (num_envs,)
     object_ee_distance = torch.norm(target_pos_w - ee_w, dim=1)
 
-    return 1 - torch.tanh(object_ee_distance / std)
+    # Reward the robot for reaching the handle
+    reward = 1.0 / (1.0 + object_ee_distance**2)
+    reward = torch.pow(reward, 2)
+    return torch.where(object_ee_distance <= threshold, 2 * reward, reward)
+    # return 1 - torch.tanh(object_ee_distance / std)
+
+def align_ee_handle(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Reward for aligning the end-effector with the handle.
+
+    The reward is based on the alignment of the gripper with the handle. It is computed as follows:
+
+    .. math::
+
+        reward = 0.5 * (align_z^2 + align_x^2)
+
+    where :math:`align_z` is the dot product of the z direction of the gripper and the -x direction of the handle
+    and :math:`align_x` is the dot product of the x direction of the gripper and the -y direction of the handle.
+    """
+    ee_frame_quat = env.scene["ee_frame"].data.target_quat_w[..., 0, :]
+    organs_quat = env.scene["organs"].data.root_quat_w
+
+    ee_frame_rot_mat = matrix_from_quat(ee_frame_quat)
+    organ_mat = matrix_from_quat(organs_quat)
+
+    # get current x and y direction of the organ
+    organ_x, organ_y = organ_mat[..., 0], organ_mat[..., 1]
+    # get current x and z direction of the gripper
+    ee_frame_x, ee_frame_z = ee_frame_rot_mat[..., 0], ee_frame_rot_mat[..., 2]
+
+    # make sure gripper aligns with the organ
+    # in this case, the z direction of the gripper should be close to the -x direction of the organ
+    # and the x direction of the gripper should be close to the -y direction of the organ
+    # dot product of z and x should be large
+    align_z = torch.bmm(ee_frame_z.unsqueeze(1), -organ_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    align_x = torch.bmm(ee_frame_x.unsqueeze(1), -organ_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    return 0.5 * (torch.sign(align_z) * align_z**2 + torch.sign(align_x) * align_x**2)
+
 
 def approach_ee_patient(
     env: ManagerBasedRLEnv, ground_truth_pos_wrt_organ: torch.tensor, threshold: float
