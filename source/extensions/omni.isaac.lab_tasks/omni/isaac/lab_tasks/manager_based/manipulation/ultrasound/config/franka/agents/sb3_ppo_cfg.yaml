@@ -1,7 +1,7 @@
 policy: "MultiInputPolicy"
-n_timesteps: 1000000
+n_timesteps: 10000000
 seed: 13
-n_steps: 100
+n_steps: 200
 
 # Add these necessary configurations
 batch_size: 64

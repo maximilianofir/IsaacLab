@@ -54,6 +54,13 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import VecNormalize
 
+from omni.isaac.lab.envs import (
+    DirectMARLEnv,
+    DirectMARLEnvCfg,
+    DirectRLEnvCfg,
+    ManagerBasedRLEnvCfg,
+    multi_agent_to_single_agent,
+)
 from omni.isaac.lab.utils.dict import print_dict
 from omni.isaac.lab.utils.io import dump_pickle, dump_yaml
 
@@ -61,17 +68,16 @@ import omni.isaac.lab_tasks  # noqa: F401
 from omni.isaac.lab_tasks.utils.hydra import hydra_task_config
 from omni.isaac.lab_tasks.utils.wrappers.sb3 import Sb3VecEnvWrapper, process_sb3_cfg
 
-import omni.isaac.lab_tasks.manager_based.manipulation.ultrasound.franka_manager_rl_env_cfg as ultrasound 
 
 @hydra_task_config(args_cli.task, "sb3_cfg_entry_point")
-def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
+def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: dict):
     """Train with stable-baselines agent."""
     # randomly sample a seed if seed = -1
     if args_cli.seed == -1:
         args_cli.seed = random.randint(0, 10000)
 
     # override configurations with non-hydra CLI arguments
-
+    env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
     agent_cfg["seed"] = args_cli.seed if args_cli.seed is not None else agent_cfg["seed"]
     # max iterations for training
     if args_cli.max_iterations is not None:
@@ -97,8 +103,7 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict):
     n_timesteps = agent_cfg.pop("n_timesteps")
 
     # create isaac environment
-    env = gym.make("Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0", cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
-    
+    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
     # wrap for video recording - captures videos of the environment’s behavior during execution.
     if args_cli.video:
         video_kwargs = {

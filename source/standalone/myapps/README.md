@@ -31,45 +31,49 @@ environment to load organs and robotic manipulator
 ```sh
 ```
 
-### franka manager environment
-manager based environment with random motion on robot. The flag '--enable_cameras' allows for visualization of cameras in IsaacLab.
+### State Machine
+Without any learning, we can control the robot to reach positions, or full poses. These poses can depend on the body pose. This script reaches a position above the torso, with the camera pointed down, looking at the torso.
 
 ```sh
-python "source\standalone\myapps\random_joint_pose.py"--enable_cameras
+python "source/standalone/myapps/reach_torso.py" --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0 --enable_cameras
 ```
+You can launch multiple instances (2) by appending: 
+`--num_envs 2`
 
-#### Cartesian control environment
-Instead of randomly setting joint states, we can also use an inverse kinematics controller and sample target poses for the end-effector. 
-This is done in  [franka_manager_ik_action_env.py](franka_manager_ik_action_env.py)
-```sh
-python python "source\standalone\myapps\random_ee_pose.py"
-```
+Todo: extent into a state machine, with multiple goals
 
-#### RL environment 
-The EL environment is registered with gym. Therefore the API to call the model changes slightly. 
 
-To register the environment, the configuration files were refactored and moved to a folder in source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound. 
 
-The folder structure resembles that of similar applications in the same parent folder. 
 
-The \_\_init\_\_.py at (source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\\\_\_init__.py) shows how to register the environments defined in  "source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\franka_manager_rl_env_cfg.py"
+### Training
 
-Windows:
-```sh
-python "source\standalone\myapps\random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0
-```
-Linux:
-```sh
-python "source/standalone/myapps/random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0
-```
-
-##### Training
 The example from the tutorial
 ```sh
 python source/standalone/workflows/sb3/train.py --task Isaac-Cartpole-v0 --num_envs 64
+
+# Franka draw 
+python source/standalone/workflows/rl_games/train.py --task Isaac-Open-Drawer-Franka-v0 --num_envs 2
 ```
 
 Ours: 
+- Increase `--num_envs 2` as needed
+- save videos `--video`
 ```sh
-python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0 --num_envs 1
+python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 64 --video
+```
+
+See logs: 
+```sh
+python -m tensorboard.main --logdir logs/sb3/Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0/2024-12-12_14-40-21/
+```
+
+### Play
+
+```sh
+python source/standalone/myapps/play.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 32 --use_last_checkpoint --enable_cameras 
+```
+
+optionally define the path to the checkpoint to load. 
+```sh
+python source/standalone/myapps/play.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 32 --checkpoint "/home/maxofir/repos/forks/IsaacLab/logs/sb3/Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0/2024-12-16_14-48-00/model_155000_steps.zip" --enable_cameras 
 ```
