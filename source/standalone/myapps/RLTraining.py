@@ -8,7 +8,14 @@
 Since Stable-Baselines3 does not support buffers living on GPU directly,
 we recommend using smaller number of environments. Otherwise,
 there will be significant overhead in GPU->CPU transfer.
+
+.. code-block:: bash
+
+    # Usage
+    ./isaaclab.bat -p source/standalone/myapps/RLTraining.py --enable_cameras 
+
 """
+
 
 """Launch Isaac Sim Simulator first."""
 
@@ -38,7 +45,8 @@ if args_cli.video:
 sys.argv = [sys.argv[0]] + hydra_args
 
 # launch omniverse app
-app_launcher = AppLauncher(args_cli)
+# Important to set enable_cameras from here, otherwise it won't work correctly when setting headless
+app_launcher = AppLauncher(headless=True, enable_cameras=True)
 simulation_app = app_launcher.app
 
 """Rest everything follows."""

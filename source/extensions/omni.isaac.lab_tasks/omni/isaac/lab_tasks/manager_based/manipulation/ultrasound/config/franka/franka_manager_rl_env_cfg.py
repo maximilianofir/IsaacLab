@@ -7,6 +7,7 @@
 from dataclasses import MISSING
 
 import omni.isaac.lab.sim as sim_utils
+
 from omni.isaac.lab.assets import AssetBaseCfg, ArticulationCfg, RigidObjectCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
@@ -36,9 +37,7 @@ from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 FRAME_MARKER_SMALL_CFG = FRAME_MARKER_CFG.copy()
 FRAME_MARKER_SMALL_CFG.markers["frame"].scale = (0.10, 0.10, 0.10)
 
-from ... import mdp
-
-
+from omni.isaac.lab_tasks.manager_based.manipulation.ultrasound import mdp
 @configclass
 class RoboticSoftCfg(InteractiveSceneCfg):
     # ground plane
@@ -71,7 +70,7 @@ class RoboticSoftCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/organs",
         init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
         spawn=sim_utils.UsdFileCfg(
-            # usd_path="omniverse://localhost/Library/test/test_cube.usd",
+            #usd_path="omniverse://localhost/Library/test/test_cube.usd",
             usd_path="omniverse://localhost/Library/ultrasound/phantom/skin_tone_rigid.usd",
             scale=(0.00254, 0.00254, 0.00254),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
@@ -81,11 +80,7 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     )
 
     # articulation
-    # robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
-    #     prim_path="{ENV_REGEX_NS}/Robot"
-    # )
-    # alternative robot without camera
-    robot: ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(
+    robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot"
     )
     # end-effector sensor: will be populated by agent env cfg
@@ -194,7 +189,7 @@ class ObservationsCfg:
         actions = ObsTerm(func=mdp.last_action)
 
         # Add camera observation
-        # camera_rgbd = ObsTerm(func=mdp.camera_rgbd_observation)
+        camera_rgbd = ObsTerm(func=mdp.camera_rgbd_observation)
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
@@ -400,19 +395,6 @@ class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
         # simulation settings
         self.sim.dt = 1 / 200
         self.sim.render_interval = self.decimation
-
-        # # set a different start pose for the robot
-        # joint_pos={
-        #     "panda_joint1": 0.0,
-        #     "panda_joint2": -0.01,
-        #     "panda_joint3": 0.0,
-        #     "panda_joint4": -1.0,
-        #     "panda_joint5": 0.0,
-        #     "panda_joint6": 3.037,
-        #     "panda_joint7": 0.741,
-        #     "panda_finger_joint.*": 0.04,
-        # }
-        # self.scene.robot.init_state.joint_pos = joint_pos
 
         # configure the action
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
