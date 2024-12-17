@@ -80,9 +80,13 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     )
 
     # articulation
-    robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
+    # alternative robot: FRANKA_PANDA_HIGH_PD_CFG
+    robot : ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot"
     )
+    # robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
+    #     prim_path="{ENV_REGEX_NS}/Robot"
+    # )
     # end-effector sensor: will be populated by agent env cfg
     ee_frame: FrameTransformerCfg = MISSING
 
@@ -189,7 +193,7 @@ class ObservationsCfg:
         actions = ObsTerm(func=mdp.last_action)
 
         # Add camera observation
-        camera_rgbd = ObsTerm(func=mdp.camera_rgbd_observation)
+        # camera_rgbd = ObsTerm(func=mdp.camera_rgbd_observation)
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
