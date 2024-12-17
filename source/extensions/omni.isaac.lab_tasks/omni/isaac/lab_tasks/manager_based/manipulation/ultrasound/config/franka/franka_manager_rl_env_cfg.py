@@ -36,7 +36,7 @@ from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 FRAME_MARKER_SMALL_CFG = FRAME_MARKER_CFG.copy()
 FRAME_MARKER_SMALL_CFG.markers["frame"].scale = (0.10, 0.10, 0.10)
 
-from . import mdp
+from ... import mdp
 
 
 @configclass

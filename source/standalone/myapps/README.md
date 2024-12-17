@@ -45,25 +45,6 @@ Todo: extent into a state machine, with multiple goals
 
 
 
-
-### RL environment 
-The EL environment is registered with gym. Therefore the API to call the model changes slightly. 
-
-To register the environment, the configuration files were refactored and moved to a folder in source/extensions/omni.isaac.lab_tasks/omni/isaac/lab_tasks/manager_based/manipulation/ultrasound. 
-
-The folder structure resembles that of similar applications in the same parent folder. 
-
-The \_\_init\_\_.py at (source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\\\_\_init__.py) shows how to register the environments defined in  "source\extensions\omni.isaac.lab_tasks\omni\isaac\lab_tasks\manager_based\manipulation\ultrasound\config\franka\franka_manager_rl_env_cfg.py"
-
-<!-- Windows:
-```sh
-python "source\standalone\myapps\random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 
-```
-Linux:
-```sh
-python "source/standalone/myapps/random_ee_pose_rl.py" --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 2 -->
-
-
 ### Training
 
 The example from the tutorial
