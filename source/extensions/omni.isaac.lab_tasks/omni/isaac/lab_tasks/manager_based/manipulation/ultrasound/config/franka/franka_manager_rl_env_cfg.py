@@ -70,8 +70,8 @@ class RoboticSoftCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/organs",
         init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
         spawn=sim_utils.UsdFileCfg(
-            usd_path="omniverse://localhost/Library/test/test_cube.usd",
-            #usd_path="omniverse://localhost/Library/ultrasound/phantom/skin_tone_rigid.usd",
+            #usd_path="omniverse://localhost/Library/test/test_cube.usd",
+            usd_path="omniverse://localhost/Library/ultrasound/phantom/skin_tone_rigid.usd",
             scale=(0.00254, 0.00254, 0.00254),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
             mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
