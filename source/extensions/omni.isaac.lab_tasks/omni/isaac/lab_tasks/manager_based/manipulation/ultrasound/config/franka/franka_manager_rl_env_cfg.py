@@ -5,8 +5,9 @@
 
 
 from dataclasses import MISSING
+
 import omni.isaac.lab.sim as sim_utils
-from omni.isaac.lab.assets import DeformableObject, DeformableObjectCfg
+
 from omni.isaac.lab.assets import AssetBaseCfg, ArticulationCfg, RigidObjectCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
@@ -28,7 +29,6 @@ from omni.isaac.lab.envs.mdp.actions.actions_cfg import (
 from omni.isaac.lab_assets import FRANKA_PANDA_REALSENSE_CFG
 
 from omni.isaac.lab_tasks.manager_based.manipulation.ultrasound import mdp
-
 @configclass
 class RoboticSoftCfg(InteractiveSceneCfg):
     # ground plane
