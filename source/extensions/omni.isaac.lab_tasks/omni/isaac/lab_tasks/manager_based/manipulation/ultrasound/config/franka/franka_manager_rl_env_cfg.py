@@ -53,34 +53,21 @@ class RoboticSoftCfg(InteractiveSceneCfg):
         ),
     )
 
-     # initial position from teddy_bear example
-    organs : DeformableObjectCfg = DeformableObjectCfg(
-            prim_path="{ENV_REGEX_NS}/cube_deform",
-            spawn=sim_utils.MeshCuboidCfg(
-                size=(0.4, 0.4, 0.4),
-                deformable_props=sim_utils.DeformableBodyPropertiesCfg(rest_offset=0.0, contact_offset=0.001),
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.5, 0.1, 0.0)),
-                physics_material=sim_utils.DeformableBodyMaterialCfg(poissons_ratio=0.4, youngs_modulus=1e5),
-            ),
-            init_state=DeformableObjectCfg.InitialStateCfg(pos=(0.5, 0, 0.05)),
-            debug_vis=True,
-        )
-
     # body
     # spawn the organ model onto the table, it needs to be scaled (1/10 of an inch?)
     # the model with _rigid was modified in USDComposer to have rigid body properties.
     # Leaving the props empty will use the default values.
-    # organs = RigidObjectCfg(
-    #     prim_path="{ENV_REGEX_NS}/organs",
-    #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
-    #     spawn=sim_utils.UsdFileCfg(
-    #         usd_path="C:/Users/tirindelli/ProjectsData/IsaacLab/ultrasound/organ_rigid.usda",
-    #         scale=(0.00254, 0.00254, 0.00254),
-    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
-    #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
-    #         collision_props=sim_utils.CollisionPropertiesCfg(),
-    #     ),
-    # )
+    organs = RigidObjectCfg(
+        prim_path="{ENV_REGEX_NS}/organs",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path="omniverse://localhost/Library/ultrasound/environment/organ_rigid.usda",
+            scale=(0.00254, 0.00254, 0.00254),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
+    )
 
     # articulation
     robot: ArticulationCfg = FRANKA_PANDA_REALSENSE_CFG.replace(
@@ -172,17 +159,16 @@ class EventCfg:
     # this needs to be executed before any other reset function, to not overwrite the reset scene to default.
     reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
-    # TODO: fix this: adding random offset in organ position at each reset
     # the second reset only affects the organ body, and adds a random offset to the organ body, w.r.t to the current position.
-    # reset_object_position = EventTerm(
-    #     func=mdp.reset_root_state_uniform,
-    #     mode="reset",
-    #     params={
-    #         "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (-0, -0.1)},
-    #         "velocity_range": {},
-    #         "asset_cfg": SceneEntityCfg("organs"),
-    #     },
-    # )
+    reset_object_position = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (-0, -0.1)},
+            "velocity_range": {},
+            "asset_cfg": SceneEntityCfg("organs"),
+        },
+    )
 
 
 @configclass
@@ -219,6 +205,70 @@ class CurriculumCfg:
     """Configuration for the curriculum."""
 
     pass
+
+
+@configclass
+class RoboticEnvIkCfg(ManagerBasedEnvCfg):
+    """Configuration for the robotic ultrasound environment."""
+
+    # scene settings
+    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
+    # Basic settings
+    observations = ObservationsCfg()
+    actions = ActionsCfg()
+    events = EventCfg()
+
+    def __post_init__(self) -> None:
+        """Post initialization."""
+        # viewer settings
+        self.viewer.eye = [4.5, 0.0, 6.0]
+        self.viewer.lookat = [0.0, 0.0, 2.0]
+        # step settings
+        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
+        # simulation settings
+        self.sim.dt = 0.005  # sim step every 5ms: 200Hz
+
+        # configure the action
+        self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
+            asset_name="robot",
+            joint_names=["panda_joint.*"],
+            body_name="panda_hand",
+            controller=DifferentialIKControllerCfg(
+                command_type="pose", use_relative_mode=False, ik_method="dls"
+            ),
+            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(
+                pos=[0.0, 0.0, 0.107]
+            ),
+        )
+
+@configclass
+class RoboticEnvCfg(ManagerBasedEnvCfg):
+    """Configuration for the robotic ultrasound environment."""
+
+    # scene settings
+    scene: RoboticSoftCfg = RoboticSoftCfg(num_envs=1, env_spacing=2.5)
+    # Basic settings
+    observations = ObservationsCfg()
+    actions = ActionsCfg()
+    events = EventCfg()
+
+    def __post_init__(self) -> None:
+        """Post initialization."""
+        # viewer settings
+        self.viewer.eye = [4.5, 0.0, 6.0]
+        self.viewer.lookat = [0.0, 0.0, 2.0]
+        # step settings
+        self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
+        # simulation settings
+        self.sim.dt = 0.005  # sim step every 5ms: 200Hz
+
+        self.actions.arm_action = mdp.JointPositionActionCfg(
+            asset_name="robot",
+            joint_names=["panda_joint.*"],
+            scale=1.0,
+            use_default_offset=True,
+        )
+
 
 @configclass
 class RoboticIkRlEnvCfg(ManagerBasedRLEnvCfg):
