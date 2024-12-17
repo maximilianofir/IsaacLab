@@ -43,7 +43,7 @@ import torch
 import omni.isaac.lab_tasks  # noqa: F401
 from omni.isaac.lab_tasks.utils.parse_cfg import get_checkpoint_path, load_cfg_from_registry, parse_env_cfg
 from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedRLEnv
-#from omni.isaac.lab_tasks.manager_based.manipulation.ultrasound.config.franka.franka_manager_rl_env_cfg import RoboticIkRlEnvCfg
+from common import RoboticIkRlEnvCfg
 
 
 def main():
