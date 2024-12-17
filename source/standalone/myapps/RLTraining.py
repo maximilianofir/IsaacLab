@@ -45,6 +45,7 @@ if args_cli.video:
 sys.argv = [sys.argv[0]] + hydra_args
 
 # launch omniverse app
+# Important to set enable_cameras from here, otherwise it won't work correctly when setting headless
 app_launcher = AppLauncher(headless=True, enable_cameras=True)
 simulation_app = app_launcher.app
 
@@ -77,15 +78,15 @@ from omni.isaac.lab_tasks.utils.wrappers.sb3 import Sb3VecEnvWrapper, process_sb
 
 import omni.isaac.lab_tasks.manager_based.manipulation.ultrasound.config.franka.franka_manager_rl_env_cfg as ultrasound 
 
-@hydra_task_config("Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0", "sb3_cfg_entry_point")
-def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs):
+@hydra_task_config(args_cli.task, "sb3_cfg_entry_point")
+def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: dict):
     """Train with stable-baselines agent."""
     # randomly sample a seed if seed = -1
     if args_cli.seed == -1:
         args_cli.seed = random.randint(0, 10000)
 
     # override configurations with non-hydra CLI arguments
-
+    env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
     agent_cfg["seed"] = args_cli.seed if args_cli.seed is not None else agent_cfg["seed"]
     # max iterations for training
     if args_cli.max_iterations is not None:
@@ -97,8 +98,8 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
     # directory for logging into
-    log_dir = os.path.join("logs", "sb3", "test-task", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-    #dump the configuration into log-directory
+    log_dir = os.path.join("logs", "sb3", args_cli.task, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
     dump_pickle(os.path.join(log_dir, "params", "env.pkl"), env_cfg)
@@ -111,8 +112,7 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs
     n_timesteps = agent_cfg.pop("n_timesteps")
 
     # create isaac environment
-    env = gym.make("Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0", cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
-    
+    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
     # wrap for video recording - captures videos of the environment’s behavior during execution.
     if args_cli.video:
         video_kwargs = {
@@ -138,9 +138,6 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs
             gamma=agent_cfg["gamma"],
             clip_reward=np.inf,
         )
-
-    # create agent from stable baselines
-    #agent = PPO(policy_arch, env, verbose=1, **agent_cfg)
 
     policy_kwargs = {
         "net_arch": [dict(pi=[256, 256], vf=[256, 256])],
@@ -171,18 +168,13 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs
         verbose=1,
         device="cuda"
     )
-
-
     # configure the logger
     new_logger = configure(log_dir, ["stdout", "tensorboard"])
     agent.set_logger(new_logger)
 
     # callbacks for agent
-    print("[INFO] Setting checkpoint callback")
     checkpoint_callback = CheckpointCallback(save_freq=1000, save_path=log_dir, name_prefix="model", verbose=2)
     # train the agent
-    
-    print("[INFO] Starting agent training")
     agent.learn(total_timesteps=n_timesteps, callback=checkpoint_callback)
     # save the final model
     agent.save(os.path.join(log_dir, "model"))
@@ -192,15 +184,7 @@ def main(env_cfg: ultrasound.RoboticIkRlEnvCfg, agent_cfg: dict, *args, **kwargs
 
 
 if __name__ == "__main__":
-    import yaml
-    # TODO: add to argparse
-
-    # Load a YAML file
-    with open("C:/Users/tirindelli/ImFusionProjects/IsaacLab/source/standalone/myapps/rl_config.yaml", "r") as file:
-        agent_config = yaml.safe_load(file)  # Use safe_load for security
-
-    envConfig = ultrasound.RoboticIkRlEnvCfg()
     # run the main function
-    main(envConfig, agent_config)
+    main()
     # close sim app
     simulation_app.close()
