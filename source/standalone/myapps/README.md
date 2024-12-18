@@ -67,6 +67,7 @@ Ours:
 ```sh
 python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 64 --video
 ```
+- SB3 supports [loading checkpoints](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html#stable_baselines3.ppo.PPO.load), but IsaacLab currently does not expose this method. 
 #### RL-Games
 For RL-Games, currently the observations need to be concatenated, e.g. have the same shape.
 
@@ -74,7 +75,12 @@ For RL-Games, currently the observations need to be concatenated, e.g. have the 
 python source/standalone/workflows/rl_games/train.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 64 --video --headless
 ```
 
+Play
+```sh
+python source/standalone/workflows/rl_games/play.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --num_envs 1 --use_last_checkpoint --enable_cameras 
+```
 
+#### Logs
 See logs: 
 ```sh
 python -m tensorboard.main --logdir logs/sb3/Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0/2024-12-12_14-40-21/

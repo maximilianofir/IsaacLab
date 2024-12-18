@@ -57,13 +57,17 @@ def align_ee_handle(env: ManagerBasedRLEnv) -> torch.Tensor:
     and :math:`align_x` is the dot product of the x direction of the gripper and the -y direction of the handle.
     """
     ee_frame_quat = env.scene["ee_frame"].data.target_quat_w[..., 0, :]
-    organs_quat = env.scene["organs"].data.root_quat_w
+    # organs_quat = env.scene["organs"].data.root_quat_w
+    goal_frame_quat = env.scene["goal_frame"].data.target_quat_w[..., 0, :]
 
     ee_frame_rot_mat = matrix_from_quat(ee_frame_quat)
-    organ_mat = matrix_from_quat(organs_quat)
+    # organ_mat = matrix_from_quat(organs_quat)
+    goal_frame_rot_mat = matrix_from_quat(goal_frame_quat)
 
     # get current x and y direction of the organ
-    organ_x, organ_y = organ_mat[..., 0], organ_mat[..., 1]
+    # organ_x, organ_y = organ_mat[..., 0], organ_mat[..., 1]
+    # get the current x and z direction of the goal frame
+    goal_frame_x, goal_frame_z = goal_frame_rot_mat[..., 0], goal_frame_rot_mat[..., 2]
     # get current x and z direction of the gripper
     ee_frame_x, ee_frame_z = ee_frame_rot_mat[..., 0], ee_frame_rot_mat[..., 2]
 
@@ -71,10 +75,16 @@ def align_ee_handle(env: ManagerBasedRLEnv) -> torch.Tensor:
     # in this case, the z direction of the gripper should be close to the -x direction of the organ
     # and the x direction of the gripper should be close to the -y direction of the organ
     # dot product of z and x should be large
-    align_z = torch.bmm(ee_frame_z.unsqueeze(1), -organ_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
-    align_x = torch.bmm(ee_frame_x.unsqueeze(1), -organ_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
-    return 0.5 * (torch.sign(align_z) * align_z**2 + torch.sign(align_x) * align_x**2)
+    # align_z = torch.bmm(ee_frame_z.unsqueeze(1), -organ_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    # align_x = torch.bmm(ee_frame_x.unsqueeze(1), -organ_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    # return 0.5 * (torch.sign(align_z) * align_z**2 + torch.sign(align_x) * align_x**2)
 
+    # make sure gripper aligns with the goal frame. they should have the same orientation
+    # in this case, the z direction of the gripper should be close to the z direction of the goal frame
+    # and the x direction of the gripper should be close to the x direction of the goal frame
+    align_z = torch.bmm(ee_frame_z.unsqueeze(1), goal_frame_z.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    align_x = torch.bmm(ee_frame_x.unsqueeze(1), goal_frame_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    return 0.5 * (torch.sign(align_z) * align_z**2 + torch.sign(align_x) * align_x**2)
 
 def approach_ee_patient(
     env: ManagerBasedRLEnv, ground_truth_pos_wrt_organ: torch.tensor, threshold: float

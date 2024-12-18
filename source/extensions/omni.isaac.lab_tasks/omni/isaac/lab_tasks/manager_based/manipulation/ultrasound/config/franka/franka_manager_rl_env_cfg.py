@@ -121,7 +121,7 @@ class RoboticSoftCfg(InteractiveSceneCfg):
                 name="goal_frame",
                 offset=OffsetCfg(
                     pos=(0.0, -0.25, 1.0),
-                    rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
+                    rot=(0,1,0,0),  # rotate 180 about x-axis to make the end-effector point down
                 ),
             ),
         ],
@@ -197,7 +197,7 @@ class ObservationsCfg:
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
-            self.concatenate_terms = False
+            self.concatenate_terms = True
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -229,7 +229,7 @@ class RewardsCfg:
 
     # task terms
     reaching_object = RewTerm(func=mdp.object_ee_distance, weight=2.0, params={"threshold": 0.2})
-    align_ee_handle = RewTerm(func=mdp.align_ee_handle, weight=0.5)
+    align_ee_handle = RewTerm(func=mdp.align_ee_handle, weight=2.5)
 
     # (1) Constant running reward
     alive = RewTerm(func=mdp.is_alive, weight=0.1)
