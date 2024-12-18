@@ -54,6 +54,12 @@ python source/standalone/workflows/sb3/train.py --task Isaac-Cartpole-v0 --num_e
 # Franka draw 
 python source/standalone/workflows/rl_games/train.py --task Isaac-Open-Drawer-Franka-v0 --num_envs 2
 ```
+for IK control 
+```sh
+python source/standalone/workflows/rl_games/train.py --task Isaac-Open-Drawer-Franka-IK-Abs-v0 --num_envs 2
+```
+
+#### SB3
 
 Ours: 
 - Increase `--num_envs 2` as needed
@@ -61,6 +67,13 @@ Ours:
 ```sh
 python source/standalone/myapps/RLTraining.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 64 --video
 ```
+#### RL-Games
+For RL-Games, currently the observations need to be concatenated, e.g. have the same shape.
+
+```sh
+python source/standalone/workflows/rl_games/train.py --task Isaac-Robotic-Ultrasound-Franka-IK-RL-Abs-v0 --enable_cameras --num_envs 64 --video --headless
+```
+
 
 See logs: 
 ```sh

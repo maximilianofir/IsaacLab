@@ -25,7 +25,7 @@ def object_ee_distance(
     ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
     threshold: float = 0.1,
 ) -> torch.Tensor:
-    """Reward the agent for reaching the object using tanh-kernel."""
+    """Reward the robot for reaching the drawer handle using inverse-square law."""
     # extract the used quantities (to enable type-hinting)
     object: RigidObject = env.scene[object_cfg.name]
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
