@@ -42,6 +42,12 @@ You can launch multiple instances (2) by appending:
 
 Todo: extent into a state machine, with multiple goals
 
+### Teleoperation 
+The robotic arm can be teleoperated. The teleoperation task is derived from Isaac-Robotic-Ultrasound-Franka-IK-Abs-v0 task.
+The main difference is the use of relative actions w.r.t the end-effector cs.
+```sh
+python source/standalone/environments/teleoperation/teleop_se3_agent.py --task Isaac-Robotic-Ultrasound-Franka-Teleop-IK-Rel-v0 --num_envs 1 --teleop_device keyboard --enable_cameras
+```
 
 
 

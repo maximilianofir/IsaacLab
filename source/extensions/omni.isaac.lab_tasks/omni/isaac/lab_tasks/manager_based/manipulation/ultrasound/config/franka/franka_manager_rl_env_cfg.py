@@ -68,35 +68,36 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     # spawn the organ model onto the table, it needs to be scaled (1/10 of an inch?)
     # the model with _rigid was modified in USDComposer to have rigid body properties.
     # Leaving the props empty will use the default values.
-    # organs = RigidObjectCfg(
-    #     prim_path="{ENV_REGEX_NS}/organs",
-    #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
-    #     spawn=sim_utils.UsdFileCfg(
-    #         #usd_path="omniverse://localhost/Library/test/test_cube.usd",
-    #         #usd_path="omniverse://localhost/Library/ultrasound/phantom/skin_tone_rigid.usd",
-    #         scale=(0.00254, 0.00254, 0.00254),
-    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
-    #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
-    #         collision_props=sim_utils.CollisionPropertiesCfg(),
-    #     ),
-    # )
-    
     organs = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/Object",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.5, 0, 0.055], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
-                scale=(0.8, 0.8, 0.8),
-                rigid_props=RigidBodyPropertiesCfg(
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                    max_angular_velocity=1000.0,
-                    max_linear_velocity=1000.0,
-                    max_depenetration_velocity=5.0,
-                    disable_gravity=False,
-                ),
-            )
+        prim_path="{ENV_REGEX_NS}/organs",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
+        spawn=sim_utils.UsdFileCfg(
+            #usd_path="omniverse://localhost/Library/test/test_cube.usd",
+            usd_path="omniverse://localhost/Library/ultrasound/phantom/skin_tone_rigid.usd",
+            scale=(0.00254, 0.00254, 0.00254),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
     )
+    
+    # organs = RigidObjectCfg(
+    #         prim_path="{ENV_REGEX_NS}/Object",
+    #         init_state=RigidObjectCfg.InitialStateCfg(pos=[0.5, 0, 0.055], rot=[1, 0, 0, 0]),
+    #         spawn=UsdFileCfg(
+    #             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
+    #             scale=(0.8, 0.8, 0.8),
+    #             rigid_props=RigidBodyPropertiesCfg(
+    #                 solver_position_iteration_count=16,
+    #                 solver_velocity_iteration_count=1,
+    #                 max_angular_velocity=1000.0,
+    #                 max_linear_velocity=1000.0,
+    #                 max_depenetration_velocity=5.0,
+    #                 disable_gravity=False,
+    #             ),
+    #         )
+    # )
+
 
     # articulation
     # alternative robot: FRANKA_PANDA_HIGH_PD_CFG
