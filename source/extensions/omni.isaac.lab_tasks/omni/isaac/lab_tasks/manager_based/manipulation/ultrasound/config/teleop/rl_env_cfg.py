@@ -33,8 +33,6 @@ from omni.isaac.lab.sensors.frame_transformer.frame_transformer_cfg import Offse
 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 
-from omni.isaac.lab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
-from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 
 FRAME_MARKER_SMALL_CFG = FRAME_MARKER_CFG.copy()
 FRAME_MARKER_SMALL_CFG.markers["frame"].scale = (0.10, 0.10, 0.10)
@@ -68,34 +66,17 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     # spawn the organ model onto the table, it needs to be scaled (1/10 of an inch?)
     # the model with _rigid was modified in USDComposer to have rigid body properties.
     # Leaving the props empty will use the default values.
-    # organs = RigidObjectCfg(
-    #     prim_path="{ENV_REGEX_NS}/organs",
-    #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
-    #     spawn=sim_utils.UsdFileCfg(
-    #         #usd_path="omniverse://localhost/Library/test/test_cube.usd",
-    #         #usd_path="omniverse://localhost/Library/ultrasound/phantom/skin_tone_rigid.usd",
-    #         scale=(0.00254, 0.00254, 0.00254),
-    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
-    #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
-    #         collision_props=sim_utils.CollisionPropertiesCfg(),
-    #     ),
-    # )
-    
     organs = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/Object",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.5, 0, 0.055], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
-                scale=(0.8, 0.8, 0.8),
-                rigid_props=RigidBodyPropertiesCfg(
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                    max_angular_velocity=1000.0,
-                    max_linear_velocity=1000.0,
-                    max_depenetration_velocity=5.0,
-                    disable_gravity=False,
-                ),
-            )
+        prim_path="{ENV_REGEX_NS}/organs",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.4, -0.1]),
+        spawn=sim_utils.UsdFileCfg(
+            #usd_path="omniverse://localhost/Library/test/test_cube.usd",
+            usd_path="omniverse://localhost/Library/ultrasound/phantom/skin_tone_rigid.usd",
+            scale=(0.00254, 0.00254, 0.00254),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=True),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
     )
 
     # articulation
@@ -130,36 +111,21 @@ class RoboticSoftCfg(InteractiveSceneCfg):
     )
 
     # Frame definitions for the goal frame
-    # goal_frame = FrameTransformerCfg(
-    #     prim_path="{ENV_REGEX_NS}/organs/models_topo_blender",
-    #     debug_vis=True,
-    #     visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/goal_frame"),
-    #     target_frames=[
-    #         FrameTransformerCfg.FrameCfg(
-    #             prim_path="{ENV_REGEX_NS}/organs/models_topo_blender",
-    #             name="goal_frame",
-    #             offset=OffsetCfg(
-    #                 pos=(0.0, -0.25, 1.0),
-    #                 rot=(0,1,0,0),  # rotate 180 about x-axis to make the end-effector point down
-    #             ),
-    #         ),
-    #     ],
-    # )
-    
     goal_frame = FrameTransformerCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/panda_link0",
-            debug_vis=False,
-            visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/EndEffectorFrameTransformer"),
-            target_frames=[
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/panda_hand",
-                    name="ee_tcp",
-                    offset=OffsetCfg(
-                        pos=(0.0, 0.0, 0.1034),
-                    ),
+        prim_path="{ENV_REGEX_NS}/organs/models_topo_blender",
+        debug_vis=True,
+        visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/goal_frame"),
+        target_frames=[
+            FrameTransformerCfg.FrameCfg(
+                prim_path="{ENV_REGEX_NS}/organs/models_topo_blender",
+                name="goal_frame",
+                offset=OffsetCfg(
+                    pos=(0.0, -0.25, 1.0),
+                    rot=(0,1,0,0),  # rotate 180 about x-axis to make the end-effector point down
                 ),
-            ],
-        )
+            ),
+        ],
+    )
 
 
 
@@ -243,7 +209,7 @@ class EventCfg:
 
     # the reset scene to event function already resets all rigid objects and articulations to rheir default states.
     # this needs to be executed before any other reset function, to not overwrite the reset scene to default.
-    #reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+    reset_scene = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
     # the second reset only affects the organ body, and adds a random offset to the organ body, w.r.t to the current position.
     reset_object_position = EventTerm(
@@ -325,7 +291,7 @@ class RoboticEnvIkCfg(ManagerBasedEnvCfg):
         self.decimation = 4  # env step every 4 sim steps: 200Hz / 4 = 50Hz
         # simulation settings
         self.sim.dt = 0.005  # sim step every 5ms: 200Hz
-        self.episode_length_s = 500.0
+        self.episode_length_s = 5.0
 
         # configure the action
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
