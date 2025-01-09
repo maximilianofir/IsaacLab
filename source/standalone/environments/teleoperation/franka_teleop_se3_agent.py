@@ -7,11 +7,9 @@
 This script demonstrate a single-arm manipulator.
 
 .. code-block:: bash
-
     # Usage
-    .\isaaclab.bat -p source\standalone\demos\franka_manager_teleop_env.py --enable_camerass 
-    --task Isaac-Lift-Cube-Franka-IK-Rel-v0 --num_envs 1 --teleop_device keyboard
-
+    .\isaaclab.bat -p source\standalone\environments\teleoperation\franka_teleop_se3_agent.py 
+    --task Isaac-Robotic-Ultrasound-Franka-Teleop-IK-Rel-v0 --num_envs 1 --teleop_device keyboard
 """
 
 """Launch Isaac Sim Simulator first."""
@@ -57,14 +55,12 @@ from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.managers import EventTermCfg as EventTerm
 
-#from omni.isaac.lab_tasks.manager_based.manipulation.lift.lift_env_cfg import LiftEnvCfg
 from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedEnvCfg, ManagerBasedRLEnvCfg
 
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
 from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
-#import omni.isaac.lab.envs.mdp as mdp
 
 from omni.isaac.lab.managers import SceneEntityCfg
 
@@ -85,14 +81,7 @@ from omni.isaac.lab_tasks.utils import parse_env_cfg
 from omni.isaac.lab_assets import FRANKA_PANDA_CFG
 
 # isort: on
-
-# Table_CFG = RigidObjectCfg(
-#     spawn=sim_utils.UsdFileCfg(
-#         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"))
-
-#from franka_manager_env import RoboticSoftCfg
             
-
 def pre_process_actions(delta_pose: torch.Tensor, gripper_command: bool) -> torch.Tensor:
     """Pre-process actions for the environment."""
     # resolve gripper command
@@ -114,11 +103,12 @@ def main():
     # parse configuration
     # modify configuration
     env_cfg.terminations.time_out = None
-    if "Ultrasound" in args_cli.task:
-        print('Test')
-    #     # set the resampling time range to large number to avoid resampling
-        #env_cfg.target_pose.resampling_time_range = (1.0e9, 1.0e9)
-        # add termination condition for reaching the goal otherwise the environment won't reset
+    
+    #if "Ultrasound" in args_cli.task:
+    # add termination condition for reaching the goal otherwise the environment won't reset
+    #    env_cfg.terminations.object_reached_goal= DoneTerm(func=mdp.object_reached_goal)
+    # env_cfg.terminations.in_contact = DoneTerm(func=mdp.in_contact)
+    
     # create environment
     env = gym.make(args_cli.task, cfg=env_cfg)
     # check environment name (for reach , we don't allow the gripper)
