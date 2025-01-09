@@ -3,13 +3,21 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Script to run a keyboard teleoperation with Isaac Lab manipulation environments."""
+"""
+This script demonstrate a single-arm manipulator.
+
+.. code-block:: bash
+    # Usage
+    .\isaaclab.bat -p source\standalone\environments\teleoperation\franka_teleop_se3_agent.py 
+    --task Isaac-Robotic-Ultrasound-Franka-Teleop-IK-Rel-v0 --num_envs 1 --teleop_device keyboard
+"""
 
 """Launch Isaac Sim Simulator first."""
 
 import argparse
-
 from omni.isaac.lab.app import AppLauncher
+
+#This is a procedure to launch the ISAAC SIM via python CODE 
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for Isaac Lab environments.")
@@ -20,8 +28,10 @@ parser.add_argument("--num_envs", type=int, default=1, help="Number of environme
 parser.add_argument("--teleop_device", type=str, default="keyboard", help="Device for interacting with environment")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--sensitivity", type=float, default=1.0, help="Sensitivity factor.")
+
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
+
 # parse the arguments
 args_cli = parser.parse_args()
 
@@ -31,48 +41,74 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
-
-import gymnasium as gym
+import numpy as np
 import torch
 
-import omni.log
+import omni.isaac.core.utils.prims as prim_utils
 
+import omni.isaac.lab.sim as sim_utils
+from omni.isaac.lab.sim import UsdFileCfg
+from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
+import omni.isaac.lab.utils.math as math_utils
+from omni.isaac.lab.assets import DeformableObject, DeformableObjectCfg, AssetBaseCfg, ArticulationCfg, RigidObject, RigidObjectCfg
+from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
+from omni.isaac.lab.utils import configclass
+from omni.isaac.lab.managers import EventTermCfg as EventTerm
+
+from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedEnvCfg, ManagerBasedRLEnvCfg
+
+from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
+
+from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
+from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
+
+from omni.isaac.lab.managers import SceneEntityCfg
+
+#teleoperation includes 
+import gymnasium as gym
+import omni.log
 from omni.isaac.lab.devices import Se3Gamepad, Se3Keyboard, Se3SpaceMouse
 from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
 
 import omni.isaac.lab_tasks  # noqa: F401
-from omni.isaac.lab_tasks.manager_based.manipulation.lift import mdp
+from omni.isaac.lab_tasks.manager_based.manipulation.ultrasound import mdp
 from omni.isaac.lab_tasks.utils import parse_env_cfg
 
+##
+# Pre-defined configs
+##
+# isort: off
+from omni.isaac.lab_assets import FRANKA_PANDA_CFG
 
+# isort: on
+            
 def pre_process_actions(delta_pose: torch.Tensor, gripper_command: bool) -> torch.Tensor:
     """Pre-process actions for the environment."""
-    # compute actions based on environment
-    if "Reach" in args_cli.task:
-        # note: reach is the only one that uses a different action space
-        # compute actions
-        return delta_pose
-    else:
-        # resolve gripper command
-        gripper_vel = torch.zeros(delta_pose.shape[0], 1, device=delta_pose.device)
-        gripper_vel[:] = -1.0 if gripper_command else 1.0
-        # compute actions
-        return torch.concat([delta_pose, gripper_vel], dim=1)
-
+    # resolve gripper command
+    gripper_vel = torch.zeros(delta_pose.shape[0], 1, device=delta_pose.device)
+    gripper_vel[:] = -1.0 if gripper_command else 1.0
+    # compute actions
+    return torch.concat([delta_pose, gripper_vel], dim=1)
+    
 
 def main():
-    """Running keyboard teleoperation with Isaac Lab manipulation environment."""
-    # parse configuration
+    
+    """Main function."""
     env_cfg = parse_env_cfg(
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
+    env_cfg.sim.device = args_cli.device
+
+    """Running keyboard teleoperation with Isaac Lab manipulation environment."""
+    # parse configuration
     # modify configuration
     env_cfg.terminations.time_out = None
-    if "Lift" in args_cli.task:
-        # set the resampling time range to large number to avoid resampling
-        env_cfg.commands.object_pose.resampling_time_range = (1.0e9, 1.0e9)
-        # add termination condition for reaching the goal otherwise the environment won't reset
-        env_cfg.terminations.object_reached_goal = DoneTerm(func=mdp.object_reached_goal)
+    
+    #if "Ultrasound" in args_cli.task:
+    # add termination condition for reaching the goal otherwise the environment won't reset
+    #    env_cfg.terminations.object_reached_goal= DoneTerm(func=mdp.object_reached_goal)
+    # env_cfg.terminations.in_contact = DoneTerm(func=mdp.in_contact)
+    
     # create environment
     env = gym.make(args_cli.task, cfg=env_cfg)
     # check environment name (for reach , we don't allow the gripper)
@@ -99,7 +135,6 @@ def main():
     # add teleoperation key for env reset
     teleop_interface.add_callback("L", env.reset)
     # print helper for keyboard
-    print(teleop_interface)
 
     # reset environment
     env.reset()
@@ -117,11 +152,10 @@ def main():
             # pre-process actions
             actions = pre_process_actions(delta_pose, gripper_command)
             # apply actions
-            env.step(actions)
-
+            env.step(actions)   
+     
     # close the simulator
     env.close()
-
 
 if __name__ == "__main__":
     # run the main function

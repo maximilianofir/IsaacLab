@@ -1,10 +1,10 @@
 policy: "MultiInputPolicy"
 n_timesteps: 10000000
 seed: 13
-n_steps: 200
+n_steps: 1
 
 # Add these necessary configurations
-batch_size: 64
+batch_size: 1
 n_epochs: 10
 gamma: 0.99
 gae_lambda: 0.95
